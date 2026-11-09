@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { brands, type BrandId } from '@/lib/brands'
 import type { ProductMetadata } from '@/lib/productMetadataTypes'
+import SignOutButton from '@/components/SignOutButton'
 
 interface Artwork {
   id: string
@@ -97,12 +98,15 @@ export default function ArtworkLibraryPage() {
             </p>
           </div>
 
-          <Link
-            href="/"
-            className="rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700"
-          >
-            + New artwork
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/"
+              className="rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700"
+            >
+              + New artwork
+            </Link>
+            <SignOutButton />
+          </div>
         </header>
 
         {/* Overview */}

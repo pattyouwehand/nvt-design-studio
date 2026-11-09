@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isBrandId } from '@/lib/brands'
 import { isArtworkId } from '@/lib/artworks'
 import { isSlugTaken } from '@/lib/productMetadata'
+import { getStudioUser } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
 
   const brand = searchParams.get('brand')
   const slug = searchParams.get('slug')
