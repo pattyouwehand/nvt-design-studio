@@ -161,3 +161,14 @@ export async function isArtworkSlugTaken(
     return metadata?.slug === slug
   })
 }
+
+export async function deleteArtwork( brand: BrandId, id: string ): Promise<boolean> {
+  const result = await prisma.artwork.deleteMany({
+    where: {
+      id,
+      brand
+    }
+  })
+
+  return result.count > 0
+}

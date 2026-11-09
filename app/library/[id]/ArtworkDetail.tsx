@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter,useSearchParams } from 'next/navigation'
 import { brands, type BrandId } from '@/lib/brands'
 import { productOptions } from '@/lib/productOptions'
 import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
@@ -21,6 +21,8 @@ interface ArtworkDetail {
 
 export default function ArtworkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
+
   const searchParams = useSearchParams()
   const brand = searchParams.get('brand')
 
@@ -41,6 +43,7 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
   const [checkingSlug, setCheckingSlug] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function loadArtwork() {
@@ -338,6 +341,43 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
     savedDetails !== null &&
     JSON.stringify(details) !== JSON.stringify(savedDetails)
 
+  async function handleDelete() {
+    if (!artwork || deleting) return
+
+    const confirmed = window.confirm(
+      'Are you sure you want to permanently delete this artwork and all its mockups? This cannot be undone.'
+    )
+
+    if (!confirmed) return
+
+    setDeleting(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `/api/artworks/${artwork.id}?brand=${encodeURIComponent(artwork.brand)}`,
+        { method: 'DELETE' }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to delete artwork.')
+      }
+
+      router.replace('/library')
+      router.refresh()
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete artwork.'
+      )
+      setDeleting(false)
+    }
+  }
+
   async function handleExport() {
     if (!artwork || exporting || hasUnsavedChanges) return
 
@@ -408,18 +448,29 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
           ← Back to library
         </Link>
 
-        <header className="mb-10">
-          <p className="mb-2 text-sm uppercase tracking-widest text-neutral-500">
-            {brandName}
-          </p>
+        <header className="mb-10 flex flex-wrap items-start justify-between gap-6">
+          <div>
+            <p className="mb-2 text-sm uppercase tracking-widest text-neutral-500">
+              {brandName}
+            </p>
 
-          <h1 className="text-4xl font-bold">
-            Artwork Details
-          </h1>
+            <h1 className="text-4xl font-bold">
+              Artwork Details
+            </h1>
 
-          <p className="mt-3 text-neutral-600">
-            Uploaded {new Date(artwork.createdAt).toLocaleDateString()}
-          </p>
+            <p className="mt-3 text-neutral-600">
+              Uploaded {new Date(artwork.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting || saving || generating || exporting}
+            className="rounded-lg border border-red-200 px-5 py-3 text-sm font-semibold text-red-700 transition hover:border-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {deleting ? 'Deleting...' : 'Delete Artwork'}
+          </button>
         </header>
 
         <div className="grid gap-8 md:grid-cols-2">

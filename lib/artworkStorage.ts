@@ -82,3 +82,27 @@ export async function getArtworkMockup( brand: BrandId, id: string, filename: st
 
   return Buffer.from(await data.arrayBuffer())
 }
+
+export async function deleteArtworkFiles(brand: BrandId, id: string) {
+  const folder = `${brand}/${id}`
+
+  // Find all generated mockups
+  const { data: mockups, error: listError } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .list(`${folder}/mockups`, { limit: 1000 })
+
+  if (listError) throw listError
+
+  const paths = [
+    `${folder}/artwork.png`,
+    ...(mockups ?? []).map(
+      (file) => `${folder}/mockups/${file.name}`
+    )
+  ]
+
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .remove(paths)
+
+  if (error) throw error
+}

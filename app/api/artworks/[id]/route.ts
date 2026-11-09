@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isBrandId } from '@/lib/brands'
 import { isArtworkId } from '@/lib/artworks'
-import { getArtworkById, updateArtworkMetadata, isArtworkSlugTaken } from '@/lib/artworkDatabase'
+import { getArtworkById, updateArtworkMetadata, isArtworkSlugTaken, deleteArtwork } from '@/lib/artworkDatabase'
 import { validateProductMetadata } from '@/lib/productMetadata'
 import { getStudioUser } from '@/lib/auth'
+import { deleteArtworkFiles } from '@/lib/artworkStorage'
 
 export const runtime = 'nodejs'
 
@@ -112,6 +113,63 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json(
       { error: 'Unable to save product details.' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  const { id } = await params
+  const brand = request.nextUrl.searchParams.get('brand')
+
+  if (!brand || !isBrandId(brand) || !isArtworkId(id)) {
+    return NextResponse.json(
+      { error: 'Invalid artwork.' },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const artwork = await getArtworkById(brand, id)
+
+    if (!artwork) {
+      return NextResponse.json(
+        { error: 'Artwork not found.' },
+        { status: 404 }
+      )
+    }
+
+    // Remove original artwork and generated mockups
+    await deleteArtworkFiles(brand, id)
+
+    // Remove database record
+    const deleted = await deleteArtwork(brand, id)
+
+    if (!deleted) {
+      return NextResponse.json(
+        { error: 'Artwork could not be deleted.' },
+        { status: 409 }
+      )
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Unable to delete artwork:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to delete artwork.' },
       { status: 500 }
     )
   }
