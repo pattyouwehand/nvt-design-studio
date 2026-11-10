@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { brands, type BrandId } from '@/lib/brands'
 import type { ProductMetadata } from '@/lib/productMetadataTypes'
-import SignOutButton from '@/components/SignOutButton'
+import { ChevronDown } from 'lucide-react'
 
 interface Artwork {
   id: string
@@ -105,7 +105,6 @@ export default function ArtworkLibraryPage() {
             >
               + New artwork
             </Link>
-            <SignOutButton />
           </div>
         </header>
 
@@ -141,23 +140,31 @@ export default function ArtworkLibraryPage() {
 
         {/* Filters */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <select
-            value={brandFilter}
-            onChange={(event) =>
-              setBrandFilter(
-                event.target.value as BrandFilter
-              )
-            }
-            className="rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm"
-          >
-            <option value="all">All brands</option>
+          <div className="relative min-w-52">
+            <select
+              value={brandFilter}
+              onChange={(event) =>
+                setBrandFilter(event.target.value as BrandFilter)
+              }
+              aria-label="Filter by brand"
+              className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+            >
+              <option value="all">All brands</option>
 
-            {brands.map((brand) => (
-              <option key={brand.id} value={brand.id}>
-                {brand.name}
-              </option>
-            ))}
-          </select>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+
+            <ChevronDown
+              size={18}
+              strokeWidth={1.75}
+              aria-hidden="true"
+              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+            />
+          </div>
 
           <div className="flex flex-wrap gap-2">
             {(
@@ -230,7 +237,7 @@ export default function ArtworkLibraryPage() {
                 <Link
                   key={`${artwork.brand}-${artwork.id}`}
                   href={`/library/${artwork.id}?brand=${artwork.brand}`}
-                  className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+                  className="group overflow-hidden rounded-xl border border-neutral-200 bg-white hover:shadow-lg"
                 >
                   <div className="relative aspect-square bg-neutral-100">
                     <Image
@@ -239,7 +246,7 @@ export default function ArtworkLibraryPage() {
                       fill
                       unoptimized
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      className="object-contain p-4 transition duration-300 group-hover:scale-105"
+                      className="object-contain p-4 transition duration-300"
                     />
                   </div>
 

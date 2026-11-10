@@ -9,6 +9,7 @@ import { productOptions } from '@/lib/productOptions'
 import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
 import { slugify } from '@/lib/slugify'
 import { productCatalog } from '@/lib/catalog/products'
+import { Shirt, ChevronDown } from 'lucide-react'
 
 interface ArtworkDetail {
   id: string
@@ -520,8 +521,8 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
                   className="object-contain p-6"
                 />
               ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-neutral-500">
-                  <span className="text-4xl">👕</span>
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-neutral-500">
+                  <Shirt size={36} strokeWidth={1.5} className="text-neutral-400" />
                   <p className="text-sm">
                     No mockup generated for this color yet.
                   </p>
@@ -626,35 +627,44 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
               Product type
             </label>
 
-            <select
-              id="product-type"
-              value={details.productType}
-              onChange={(event) => {
-                const selected = productCatalog.find(
-                  (product) => product.id === event.target.value
-                )
+            <div className="relative w-full md:max-w-sm">
+              <select
+                id="product-type"
+                value={details.productType}
+                onChange={(event) => {
+                  const selected = productCatalog.find(
+                    (product) => product.id === event.target.value
+                  )
 
-                if (!selected) return
+                  if (!selected) return
 
-                setDetails((current) => ({
-                  ...current,
-                  productType: selected.id,
-                  colors: selected.colors.length
-                    ? [selected.colors[0].id]
-                    : [],
-                  sizes: current.sizes.filter((size) =>
-                    selected.sizes.includes(size)
-                  ),
-                }))
-              }}
-              className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 md:max-w-sm"
-            >
-              {productCatalog.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
+                  setDetails((current) => ({
+                    ...current,
+                    productType: selected.id,
+                    colors: selected.colors.length
+                      ? [selected.colors[0].id]
+                      : [],
+                    sizes: current.sizes.filter((size) =>
+                      selected.sizes.includes(size)
+                    )
+                  }))
+                }}
+                className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+              >
+                {productCatalog.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </select>
+
+              <ChevronDown
+                size={18}
+                strokeWidth={1.75}
+                aria-hidden="true"
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+              />
+            </div>
           </div>
 
           {/* Colors */}
@@ -901,60 +911,82 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="product-category"
-                className="mb-2 block text-sm font-medium"
-              >
-                Category
-              </label>
 
-              <select
-                id="product-category"
-                value={details.category}
-                onChange={(event) =>
-                  setDetails((current) => ({
-                    ...current,
-                    category: event.target.value,
-                  }))
-                }
-                className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3"
-              >
-                <option value="">Select a category</option>
+{/* Category */}
+<div>
+  <label
+    htmlFor="product-category"
+    className="mb-2 block text-sm font-medium"
+  >
+    Category
+  </label>
 
-                {productOptions[artwork.brand].categories.map(
-                  (category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+  <div className="relative w-full md:max-w-sm">
+    <select
+      id="product-category"
+      value={details.category}
+      onChange={(event) =>
+        setDetails((current) => ({
+          ...current,
+          category: event.target.value,
+        }))
+      }
+      className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+    >
+      <option value="">Select a category</option>
 
-            <div>
-              <label
-                htmlFor="product-status"
-                className="mb-2 block text-sm font-medium"
-              >
-                Status
-              </label>
+      {productOptions[artwork.brand].categories.map(
+        (category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        )
+      )}
+    </select>
 
-              <select
-                id="product-status"
-                value={details.status}
-                onChange={(event) =>
-                  setDetails((current) => ({
-                    ...current,
-                    status: event.target.value as ProductMetadata['status'],
-                  }))
-                }
-                className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3"
-              >
-                <option value="draft">Draft</option>
-                <option value="ready">Ready for export</option>
-              </select>
-            </div>
+    <ChevronDown
+      size={18}
+      strokeWidth={1.75}
+      aria-hidden="true"
+      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+    />
+  </div>
+</div>
+
+{/* Status */}
+<div>
+  <label
+    htmlFor="product-status"
+    className="mb-2 block text-sm font-medium"
+  >
+    Status
+  </label>
+
+  <div className="relative w-full md:max-w-sm">
+    <select
+      id="product-status"
+      value={details.status}
+      onChange={(event) =>
+        setDetails((current) => ({
+          ...current,
+          status: event.target.value as ProductMetadata['status'],
+        }))
+      }
+      className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+    >
+      <option value="draft">Draft</option>
+      <option value="ready">Ready for export</option>
+    </select>
+
+    <ChevronDown
+      size={18}
+      strokeWidth={1.75}
+      aria-hidden="true"
+      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+    />
+  </div>
+</div>
+
 
             <div className="md:col-span-2">
               <p className="mb-3 text-sm font-medium">

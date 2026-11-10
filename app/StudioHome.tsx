@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { brands, type BrandId } from '@/lib/brands'
 import Link from 'next/link'
-import SignOutButton from '@/components/SignOutButton'
+import { ChevronDown } from 'lucide-react'
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
@@ -139,8 +139,6 @@ export default function HomePage() {
             >
               View artwork library →
             </Link>
-
-            <SignOutButton />
           </div>
         </header>
         <div className="grid gap-8 md:grid-cols-2">
@@ -183,24 +181,33 @@ export default function HomePage() {
                   Brand
                 </label>
 
-                <select
-                  id="brand"
-                  value={brand}
-                  disabled={uploading || generating}
-                  onChange={(event) => {
-                    setBrand(event.target.value as BrandId)
-                    setArtworkId(null)
-                    setMockupUrl(null)
-                    setMessage('')
-                  }}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3"
-                >
-                  {brands.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    id="brand"
+                    value={brand}
+                    disabled={uploading || generating}
+                    onChange={(event) => {
+                      setBrand(event.target.value as BrandId)
+                      setArtworkId(null)
+                      setMockupUrl(null)
+                      setMessage('')
+                    }}
+                    className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {brands.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <ChevronDown
+                    size={18}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+                  />
+                </div>
               </div>
 
               <button

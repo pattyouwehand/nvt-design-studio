@@ -14,13 +14,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Artwork {
+model Product {
   id          String   @id @default(uuid())
+  artworkId   String
+  artwork     Artwork  @relation(fields: [artworkId], references: [id])
   brand       String
-  filename    String   @default("artwork.png")
-  metadata    Json
+  productType String
+  title       String
+  slug        String
+  status      String   @default("draft")
+  subtitle    String?
+  description String?
+  price       Float?
+  metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  sharedImages ProductSharedImage[]
+
+  @@unique([brand, slug])
+  @@index([artworkId])
+}
+
+model Artwork {
+  id        String    @id @default(uuid())
+  brand     String
+  filename  String    @default("artwork.png")
+  metadata  Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
   @@index([brand])
+}
+
+model SharedImage {
+  id          String   @id @default(uuid())
+  name        String
+  storagePath String   @unique
+  productType String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products ProductSharedImage[]
+}
+
+model ProductSharedImage {
+  productId     String
+  sharedImageId String
+  position      Int @default(0)
+
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sharedImage SharedImage @relation(fields: [sharedImageId], references: [id])
+
+  @@id([productId, sharedImageId])
 }
