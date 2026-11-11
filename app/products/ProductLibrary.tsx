@@ -23,6 +23,7 @@ function ProductThumbnail({ product }: { product: ProductItem }) {
   const color = Array.isArray(product.colors) && typeof product.colors[0] === 'string' ? product.colors[0] : 'black'
   const mockup = `/api/mockups/${product.artworkId}?brand=${encodeURIComponent(product.brand)}&productType=${encodeURIComponent(product.productType)}&color=${encodeURIComponent(color)}`
   const original = `/api/artworks/${product.artworkId}/image?brand=${encodeURIComponent(product.brand)}`
+
   return (
     <div className="relative aspect-square bg-neutral-100">
       <Image src={failed ? original : mockup} onError={() => setFailed(true)} alt={product.title || 'Draft product'} fill unoptimized sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-contain p-5" />

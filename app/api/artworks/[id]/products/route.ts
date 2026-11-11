@@ -4,107 +4,35 @@ import { prisma } from '@/lib/prisma'
 import { getStudioUser } from '@/lib/auth'
 import { isBrandId } from '@/lib/brands'
 import { isArtworkId } from '@/lib/artworks'
-import { defaultProductMetadata } from '@/lib/productMetadataTypes'
-import type { Prisma } from '@/lib/generated/prisma/client'
+import { getProductType } from '@/lib/catalog/products'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getStudioUser()
-
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
+  if (!await getStudioUser()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const brand = request.nextUrl.searchParams.get('brand')
-
-  if (!brand || !isBrandId(brand) || !isArtworkId(id)) {
-    return NextResponse.json(
-      { error: 'Invalid artwork.' },
-      { status: 400 }
-    )
-  }
-
+  if (!brand || !isBrandId(brand) || !isArtworkId(id)) return NextResponse.json({ error: 'Invalid artwork.' }, { status: 400 })
   try {
-    const artwork = await prisma.artwork.findFirst({
-      where: { id, brand },
-      select: { id: true }
-    })
-
-    if (!artwork) {
-      return NextResponse.json(
-        { error: 'Artwork not found.' },
-        { status: 404 }
-      )
-    }
-
+    const artwork = await prisma.artwork.findFirst({ where: { id, brand }, select: { id: true } })
+    if (!artwork) return NextResponse.json({ error: 'Artwork not found.' }, { status: 404 })
     const body: unknown = await request.json()
-
-    if (
-      !body ||
-      typeof body !== 'object' ||
-      !('productType' in body) ||
-      typeof body.productType !== 'string' ||
-      !body.productType.trim()
-    ) {
-      return NextResponse.json(
-        { error: 'Select a product type.' },
-        { status: 400 }
-      )
-    }
-
-    const productType = body.productType
+    const typeId = body && typeof body === 'object' && 'productType' in body ? body.productType : null
+    const productType = typeof typeId === 'string' ? getProductType(typeId) : undefined
+    if (!productType) return NextResponse.json({ error: 'Invalid product type.' }, { status: 400 })
     const productId = randomUUID()
-    const slug = `draft-${productId}`
-
-    const metadata = {
-      ...defaultProductMetadata,
-      productType,
-      slug,
-      status: 'draft' as const
-    }
-
     const product = await prisma.product.create({
       data: {
-        id: productId,
-        artworkId: id,
-        brand,
-        productType,
-        title: '',
-        slug,
-        status: 'draft',
-        subtitle: '',
-        description: '',
-        price: null,
-        sizes: [],
-        colors: ['black'],
-        category: '',
-        label: '',
-        collections: [],
-        metadata: metadata as unknown as Prisma.InputJsonValue
+        id: productId, artworkId: id, brand, productType: productType.id,
+        title: '', slug: `draft-${productId}`, status: 'draft',
+        subtitle: '', description: '', price: null,
+        sizes: [], colors: [], category: '', label: '', collections: []
       },
-      select: {
-        id: true
-      }
+      select: { id: true }
     })
-
-    return NextResponse.json(
-      {
-        success: true,
-        productId: product.id
-      },
-      { status: 201 }
-    )
+    return NextResponse.json({ success: true, productId: product.id }, { status: 201 })
   } catch (error) {
     console.error('Unable to create product:', error)
-
-    return NextResponse.json(
-      { error: 'Unable to create product.' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Unable to create product.' }, { status: 500 })
   }
 }
