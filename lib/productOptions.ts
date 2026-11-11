@@ -8,6 +8,7 @@ export interface ProductOption {
 interface BrandProductOptions {
   categories: ProductOption[]
   collections: ProductOption[]
+  labels: ProductOption[]
 }
 
 export const productOptions: Record<BrandId, BrandProductOptions> = {
@@ -23,6 +24,11 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'area-51', name: 'Area 51 Personnel Files' },
       { id: 'moon-landing', name: 'Moon Landing Film Crew' },
       { id: 'reality-exe', name: 'Reality.EXE' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
     ]
   },
 
@@ -38,6 +44,11 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'norse-mythology', name: 'Vikings & Other Problems' },
       { id: 'monsters-myths', name: 'Monsters & Misfits' },
       { id: 'witchcraft', name: 'Witches, Curses & Bad Decisions' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
     ]
   },
 
@@ -55,6 +66,11 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'monster-mischief', name: 'Monster Mischief' },
       { id: 'bedtime-rebels', name: 'Bedtime Rebels' },
       { id: 'mini-me', name: 'Mini Me Club' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
     ]
   },
 
@@ -70,6 +86,11 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'daily-essentials', name: 'Daily Essentials' },
       { id: 'good-vibrations', name: 'Good Vibrations' },
       { id: 'outside-the-lines', name: 'Outside the Lines' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
     ]
   }
 }

@@ -1,11 +1,12 @@
 import 'server-only'
 import path from 'node:path'
-import { readFile, writeFile, readdir } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import type { BrandId } from '@/lib/brands'
-import { getArtworkDirectory, isArtworkId } from '@/lib/artworks'
+import { getArtworkDirectory } from '@/lib/artworks'
 import { productOptions } from '@/lib/productOptions'
 import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
 import { getProductType } from '@/lib/catalog/products'
+import { prisma } from '@/lib/prisma'
 
 export async function getProductMetadata( brand: BrandId, id: string ): Promise<ProductMetadata> {
   const filePath = path.join(
@@ -124,38 +125,22 @@ export async function isSlugTaken(
 ): Promise<boolean> {
   if (!slug) return false
 
-  const brandDirectory = path.dirname(
-    getArtworkDirectory(
+  const existingProduct = await prisma.product.findFirst({
+    where: {
       brand,
-      '00000000-0000-4000-8000-000000000000'
-    )
-  )
-
-  let entries
-
-  try {
-    entries = await readdir(brandDirectory, {
-      withFileTypes: true,
-    })
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return false
+      slug,
+      ...(excludeArtworkId
+        ? {
+            NOT: {
+              artworkId: excludeArtworkId
+            }
+          }
+        : {})
+    },
+    select: {
+      id: true
     }
+  })
 
-    throw error
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
-    if (!isArtworkId(entry.name)) continue
-    if (entry.name === excludeArtworkId) continue
-
-    const metadata = await getProductMetadata(brand, entry.name)
-
-    if (metadata.slug === slug) {
-      return true
-    }
-  }
-
-  return false
+  return existingProduct !== null
 }

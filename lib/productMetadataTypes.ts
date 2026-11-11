@@ -1,11 +1,13 @@
 export interface ProductMetadata {
   title: string
   slug: string
+  subtitle: string
   description: string
-  price: number // Price in cents
+  price: number
   sizes: string[]
   category: string
   collections: string[]
+  label: string
   status: 'draft' | 'ready'
   productType: string
   colors: string[]
@@ -14,11 +16,13 @@ export interface ProductMetadata {
 export const defaultProductMetadata: ProductMetadata = {
   title: '',
   slug: '',
+  subtitle: '',
   description: '',
   price: 0,
   sizes: [],
   category: '',
   collections: [],
+  label: '',
   status: 'draft',
   productType: 'classic-tee',
   colors: ['black']

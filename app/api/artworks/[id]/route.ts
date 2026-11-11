@@ -5,12 +5,15 @@ import { getArtworkById, updateArtworkMetadata, isArtworkSlugTaken, deleteArtwor
 import { validateProductMetadata } from '@/lib/productMetadata'
 import { getStudioUser } from '@/lib/auth'
 import { deleteArtworkFiles } from '@/lib/artworkStorage'
+import { prisma } from '@/lib/prisma'
+import { defaultProductMetadata } from '@/lib/productMetadataTypes'
 
 export const runtime = 'nodejs'
 
-export async function GET( request: NextRequest, { params }: { params: Promise<{ id: string }> } ) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const brand = request.nextUrl.searchParams.get('brand')
+  const selectedProductId = request.nextUrl.searchParams.get('productId')
   const user = await getStudioUser()
 
   if (!user) {
@@ -37,8 +40,87 @@ export async function GET( request: NextRequest, { params }: { params: Promise<{
       )
     }
 
+    // Fetch every product linked to this artwork.
+    const linkedProducts = await prisma.product.findMany({
+      where: {
+        artworkId: id,
+        brand
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        productType: true,
+        status: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    })
+
+    // Fetch published product IDs in one query.
+    const publishedProducts = linkedProducts.length
+      ? await prisma.publishedProduct.findMany({
+          where: {
+            productId: {
+              in: linkedProducts.map((product) => product.id)
+            }
+          },
+          select: {
+            productId: true
+          }
+        })
+      : []
+
+    const publishedIds = new Set(
+      publishedProducts.map((product) => product.productId)
+    )
+
+    const products = linkedProducts.map((product) => ({
+      ...product,
+      isPublished: publishedIds.has(product.id)
+    }))
+
+    const selectedProduct = selectedProductId ? products.find((product) => product.id === selectedProductId) : products[0]
+
+    if (selectedProductId && !selectedProduct) {
+      return NextResponse.json(
+        { error: 'Product not found for this artwork.' },
+        { status: 404 }
+      )
+    }
+
+    const selectedProductRecord = selectedProduct
+      ? await prisma.product.findUnique({
+          where: { id: selectedProduct.id }
+        })
+      : null
+
+    const selectedMetadata = selectedProductRecord
+      ? {
+          ...defaultProductMetadata,
+          title: selectedProductRecord.title,
+          slug: selectedProductRecord.slug,
+          subtitle: selectedProductRecord.subtitle ?? '',
+          description: selectedProductRecord.description ?? '',
+          price: selectedProductRecord.price ?? 0,
+          sizes: selectedProductRecord.sizes,
+          colors: selectedProductRecord.colors,
+          category: selectedProductRecord.category,
+          label: selectedProductRecord.label,
+          collections: selectedProductRecord.collections,
+          status: selectedProductRecord.status,
+          productType: selectedProductRecord.productType
+        }
+      : artwork.metadata
+
     return NextResponse.json({
       ...artwork,
+      metadata: selectedMetadata,
+      productId: selectedProduct?.id ?? null,
+      isPublished: selectedProduct?.isPublished ?? false,
+      linkedProducts: products,
       width: null,
       height: null
     })
@@ -55,6 +137,7 @@ export async function GET( request: NextRequest, { params }: { params: Promise<{
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const brand = request.nextUrl.searchParams.get('brand')
+  const productId = request.nextUrl.searchParams.get('productId')
   const user = await getStudioUser()
 
   if (!user) {
@@ -81,20 +164,53 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       )
     }
 
+    // When editing an existing product, require its ID.
+    const existingProducts = await prisma.product.findMany({
+      where: { artworkId: id, brand },
+      select: { id: true }
+    })
+
+    if (existingProducts.length > 0 && !productId) {
+      return NextResponse.json(
+        { error: 'Select a product before saving.' },
+        { status: 400 }
+      )
+    }
+
     if (
-      metadata.slug &&
-      await isArtworkSlugTaken(brand, metadata.slug, id)
+      productId &&
+      !existingProducts.some((product) => product.id === productId)
     ) {
       return NextResponse.json(
-        { error: 'This URL slug is already in use for this brand.' },
-        { status: 409 }
+        { error: 'Product not found for this artwork.' },
+        { status: 404 }
       )
+    }
+
+    // Check slug conflicts, excluding the selected product.
+    if (metadata.slug) {
+      const slugConflict = await prisma.product.findFirst({
+        where: {
+          brand,
+          slug: metadata.slug,
+          ...(productId ? { id: { not: productId } } : {})
+        },
+        select: { id: true }
+      })
+
+      if (slugConflict) {
+        return NextResponse.json(
+          { error: 'This URL slug is already in use for this brand.' },
+          { status: 409 }
+        )
+      }
     }
 
     const updated = await updateArtworkMetadata(
       brand,
       id,
-      metadata
+      metadata,
+      productId ?? undefined
     )
 
     if (!updated) {
@@ -151,11 +267,29 @@ export async function DELETE(
       )
     }
 
-    // Remove original artwork and generated mockups
-    await deleteArtworkFiles(brand, id)
+    const linkedProducts = await prisma.product.count({
+      where: {
+        artworkId: id,
+        brand
+      }
+    })
 
-    // Remove database record
+    if (linkedProducts > 0) {
+      return NextResponse.json(
+        {
+          error: 'This artwork is linked to products. Remove those products before deleting the artwork.'
+        },
+        { status: 409 }
+      )
+    }
+
+    // Remove database record first.
     const deleted = await deleteArtwork(brand, id)
+
+    if (deleted) {
+      // Clean up storage only after the database deletion succeeds.
+      await deleteArtworkFiles(brand, id)
+    }
 
     if (!deleted) {
       return NextResponse.json(

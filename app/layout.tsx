@@ -21,10 +21,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{children: React.ReactNode}>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#F5F2EB] flex-col`}>
+         <div className="flex-1">
+            {children}
+          </div>
         <StudioFooter />
       </body>
     </html>

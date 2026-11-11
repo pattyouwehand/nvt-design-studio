@@ -3,13 +3,23 @@
 import { use, useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter,useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { brands, type BrandId } from '@/lib/brands'
 import { productOptions } from '@/lib/productOptions'
 import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
 import { slugify } from '@/lib/slugify'
 import { productCatalog } from '@/lib/catalog/products'
 import { Shirt, ChevronDown } from 'lucide-react'
+
+interface LinkedProduct {
+  id: string
+  title: string
+  slug: string
+  productType: string
+  status: 'draft' | 'ready'
+  isPublished: boolean
+  createdAt: string
+}
 
 interface ArtworkDetail {
   id: string
@@ -18,6 +28,9 @@ interface ArtworkDetail {
   createdAt: string
   hasMockup: boolean
   metadata: ProductMetadata
+  productId: string | null
+  isPublished: boolean
+  linkedProducts: LinkedProduct[]
 }
 
 export default function ArtworkDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +39,7 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
 
   const searchParams = useSearchParams()
   const brand = searchParams.get('brand')
+  const selectedProductId = searchParams.get('productId')
 
   const [artwork, setArtwork] = useState<ArtworkDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,57 +59,75 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
   const [checkingSlug, setCheckingSlug] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deletingProduct, setDeletingProduct] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [unpublishing, setUnpublishing] = useState(false)
+  const [creatingProduct, setCreatingProduct] = useState(false)
 
   useEffect(() => {
-    async function loadArtwork() {
-      if (!brand) {
-        setError('Missing brand.')
-        setLoading(false)
-        return
-      }
-
-      try {
-        const response = await fetch(
-          `/api/artworks/${id}?brand=${encodeURIComponent(brand)}`
-        )
-
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(result.error || 'Unable to load artwork.')
-        }
-
-        setArtwork(result)
-
-        const metadata = result.metadata ?? { ...defaultProductMetadata }
-
-        const loadedDetails = {
-          ...metadata,
-          slug: metadata.slug || slugify(metadata.title)
-        }
-
-        setSlugManuallyEdited(
-          Boolean(metadata.slug && metadata.slug !== slugify(metadata.title))
-        )
-
-        setDetails(loadedDetails)
-        setPriceInput(String(loadedDetails.price))
-        setSavedDetails(loadedDetails)
-
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : 'Something went wrong.'
-        )
-      } finally {
-        setLoading(false)
-      }
+  async function loadArtwork() {
+    if (!brand) {
+      setError('Missing brand.')
+      setLoading(false)
+      return
     }
 
-    loadArtwork()
-  }, [id, brand])
+    setLoading(true)
+    setError('')
+    setMessage('')
 
+    try {
+      const query = new URLSearchParams({ brand })
+
+      if (selectedProductId) {
+        query.set('productId', selectedProductId)
+      }
+
+      const response = await fetch(
+        `/api/artworks/${id}?${query.toString()}`,
+        { cache: 'no-store' }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to load artwork.')
+      }
+
+      setArtwork(result)
+
+      const metadata = result.metadata ?? defaultProductMetadata
+
+      const loadedDetails: ProductMetadata = {
+        ...defaultProductMetadata,
+        ...metadata,
+        slug: metadata.slug || slugify(metadata.title)
+      }
+
+      setSlugManuallyEdited(
+        Boolean(metadata.slug && metadata.slug !== slugify(metadata.title))
+      )
+
+      setDetails(loadedDetails)
+      setPriceInput(
+        loadedDetails.price === 0 ? '' : String(loadedDetails.price)
+      )
+      setSavedDetails(loadedDetails)
+      setSlugAvailable(null)
+
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  loadArtwork()
+}, [id, brand, selectedProductId])
 
   useEffect(() => {
     if (!artwork) return
@@ -305,13 +337,19 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
     setError('')
 
     try {
+      const query = new URLSearchParams({
+        brand: artwork.brand
+      })
+
+      if (artwork.productId) {
+        query.set('productId', artwork.productId)
+      }
+
       const response = await fetch(
-        `/api/artworks/${artwork.id}?brand=${artwork.brand}`,
+        `/api/artworks/${artwork.id}?${query.toString()}`,
         {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(details)
         }
       )
@@ -324,6 +362,18 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
         )
       }
 
+      const artworkResponse = await fetch(
+        `/api/artworks/${artwork.id}?${query.toString()}`,
+        { cache: 'no-store' }
+      )
+
+      if (!artworkResponse.ok) {
+        throw new Error('Product saved, but unable to refresh product data.')
+      }
+
+      const updatedArtwork: ArtworkDetail = await artworkResponse.json()
+
+      setArtwork(updatedArtwork)
       setSavedDetails(details)
       setMessage('Product details saved successfully!')
 
@@ -338,9 +388,67 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
-  const hasUnsavedChanges =
-    savedDetails !== null &&
-    JSON.stringify(details) !== JSON.stringify(savedDetails)
+  const hasUnsavedChanges = savedDetails !== null && JSON.stringify(details) !== JSON.stringify(savedDetails)
+
+  async function handleDeleteProduct() {
+    if (!artwork?.productId || deletingProduct) return
+
+    const confirmed = window.confirm(
+      'Permanently delete this product?\n\n' +
+      'It will also be removed from the storefront.\n' +
+      'The original artwork and mockups will be preserved.'
+    )
+
+    if (!confirmed) return
+
+    setDeletingProduct(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `/api/products/${artwork.productId}`,
+        { method: 'DELETE' }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || 'Unable to delete product.'
+        )
+      }
+
+      const resetDetails = { ...defaultProductMetadata }
+
+      setArtwork((current) =>
+        current
+          ? {
+              ...current,
+              productId: null,
+              isPublished: false,
+              metadata: resetDetails
+            }
+          : current
+      )
+
+      setDetails(resetDetails)
+      setSavedDetails(resetDetails)
+      setPriceInput('')
+      setSlugManuallyEdited(false)
+      setSlugAvailable(null)
+
+      setMessage('Product deleted. Original artwork preserved!')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete product.'
+      )
+    } finally {
+      setDeletingProduct(false)
+    }
+  }
 
   async function handleDelete() {
     if (!artwork || deleting) return
@@ -418,6 +526,130 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
       )
     } finally {
       setExporting(false)
+    }
+  }
+
+  async function handlePublish() {
+    if (
+      !artwork?.productId ||
+      publishing ||
+      hasUnsavedChanges ||
+      details.status !== 'ready'
+    ) return
+
+    setPublishing(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `/api/products/${artwork.productId}/publish`,
+        { method: 'POST' }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to publish product.')
+      }
+
+      setArtwork((current) =>
+        current ? { ...current, isPublished: true } : current
+      )
+
+      setMessage('Product published successfully!')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to publish product.'
+      )
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  async function handleUnpublish() {
+    if (!artwork?.productId || unpublishing) return
+
+    const confirmed = window.confirm(
+      'Remove this product from the storefront? Your Studio product and mockups will be preserved.'
+    )
+
+    if (!confirmed) return
+
+    setUnpublishing(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `/api/products/${artwork.productId}/publish`,
+        { method: 'DELETE' }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to unpublish product.')
+      }
+
+      setArtwork((current) =>
+        current ? { ...current, isPublished: false } : current
+      )
+
+      setMessage('Product unpublished successfully!')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to unpublish product.'
+      )
+    } finally {
+      setUnpublishing(false)
+    }
+  }
+
+  async function handleCreateProduct() {
+    if (!artwork || creatingProduct) return
+
+    if (hasUnsavedChanges) {
+      setError('Save or discard your changes before creating a new product.')
+      return
+    }
+
+    setCreatingProduct(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `/api/artworks/${artwork.id}/products?brand=${encodeURIComponent(artwork.brand)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productType: details.productType
+          })
+        }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to create product.')
+      }
+
+      window.location.href =
+        `/library/${artwork.id}?brand=${encodeURIComponent(artwork.brand)}&productId=${encodeURIComponent(result.productId)}`
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to create product.'
+      )
+    } finally {
+      setCreatingProduct(false)
     }
   }
 
@@ -817,6 +1049,31 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
+            {/* Subtitle */}
+            <div className="md:col-span-2">
+              <label
+                htmlFor="product-subtitle"
+                className="mb-2 block text-sm font-medium"
+              >
+                Subtitle
+              </label>
+
+              <input
+                id="product-subtitle"
+                type="text"
+                maxLength={200}
+                value={details.subtitle}
+                onChange={(event) =>
+                  setDetails((current) => ({
+                    ...current,
+                    subtitle: event.target.value
+                  }))
+                }
+                placeholder="A little extra attitude..."
+                className="w-full rounded-lg border border-neutral-300 px-4 py-3"
+              />
+            </div>
+
             {/* Description */}
             <div className="md:col-span-2">
               <label
@@ -911,82 +1168,119 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
+            {/* Category */}
+            <div>
+              <label
+                htmlFor="product-category"
+                className="mb-2 block text-sm font-medium"
+              >
+                Category
+              </label>
 
-{/* Category */}
-<div>
-  <label
-    htmlFor="product-category"
-    className="mb-2 block text-sm font-medium"
-  >
-    Category
-  </label>
+              <div className="relative w-full md:max-w-sm">
+                <select
+                  id="product-category"
+                  value={details.category}
+                  onChange={(event) =>
+                    setDetails((current) => ({
+                      ...current,
+                      category: event.target.value,
+                    }))
+                  }
+                  className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+                >
+                  <option value="">Select a category</option>
 
-  <div className="relative w-full md:max-w-sm">
-    <select
-      id="product-category"
-      value={details.category}
-      onChange={(event) =>
-        setDetails((current) => ({
-          ...current,
-          category: event.target.value,
-        }))
-      }
-      className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
-    >
-      <option value="">Select a category</option>
+                  {productOptions[artwork.brand].categories.map(
+                    (category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    )
+                  )}
+                </select>
 
-      {productOptions[artwork.brand].categories.map(
-        (category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        )
-      )}
-    </select>
+                <ChevronDown
+                  size={18}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+                />
+              </div>
+            </div>
 
-    <ChevronDown
-      size={18}
-      strokeWidth={1.75}
-      aria-hidden="true"
-      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
-    />
-  </div>
-</div>
+            {/* Label */}
+            <div>
+              <label
+                htmlFor="product-label"
+                className="mb-2 block text-sm font-medium"
+              >
+                Product label
+              </label>
 
-{/* Status */}
-<div>
-  <label
-    htmlFor="product-status"
-    className="mb-2 block text-sm font-medium"
-  >
-    Status
-  </label>
+              <div className="relative w-full md:max-w-sm">
+                <select
+                  id="product-label"
+                  value={details.label}
+                  onChange={(event) =>
+                    setDetails((current) => ({
+                      ...current,
+                      label: event.target.value
+                    }))
+                  }
+                  className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+                >
+                  <option value="">No label</option>
 
-  <div className="relative w-full md:max-w-sm">
-    <select
-      id="product-status"
-      value={details.status}
-      onChange={(event) =>
-        setDetails((current) => ({
-          ...current,
-          status: event.target.value as ProductMetadata['status'],
-        }))
-      }
-      className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
-    >
-      <option value="draft">Draft</option>
-      <option value="ready">Ready for export</option>
-    </select>
+                  {productOptions[artwork.brand].labels.map((label) => (
+                    <option key={label.id} value={label.id}>
+                      {label.name}
+                    </option>
+                  ))}
+                </select>
 
-    <ChevronDown
-      size={18}
-      strokeWidth={1.75}
-      aria-hidden="true"
-      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
-    />
-  </div>
-</div>
+                <ChevronDown
+                  size={18}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+                />
+              </div>
+            </div>
 
+            {/* Status */}
+            <div>
+              <label
+                htmlFor="product-status"
+                className="mb-2 block text-sm font-medium"
+              >
+                Status
+              </label>
+
+              <div className="relative w-full md:max-w-sm">
+                <select
+                  id="product-status"
+                  value={details.status}
+                  onChange={(event) =>
+                    setDetails((current) => ({
+                      ...current,
+                      status: event.target.value as ProductMetadata['status'],
+                    }))
+                  }
+                  className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="ready">Ready for export</option>
+                </select>
+
+                <ChevronDown
+                  size={18}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+                />
+              </div>
+            </div>
 
             <div className="md:col-span-2">
               <p className="mb-3 text-sm font-medium">
@@ -1039,22 +1333,74 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
 
             <button
               type="button"
+              onClick={handlePublish}
+              disabled={
+                publishing ||
+                unpublishing ||
+                saving ||
+                generating ||
+                checkingSlug ||
+                checkingMockups ||
+                hasUnsavedChanges ||
+                !artwork.productId ||
+                details.status !== 'ready' ||
+                !details.colors.every((color) =>
+                  availableMockups.includes(color)
+                )
+              }
+              className="rounded-lg bg-emerald-700 px-6 py-3 font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {publishing
+                ? 'Publishing...'
+                : artwork.isPublished
+                  ? 'Update Storefront'
+                  : 'Publish to Storefront'}
+            </button>
+
+            {artwork.isPublished && (
+              <button
+                type="button"
+                onClick={handleUnpublish}
+                disabled={unpublishing || publishing || saving}
+                className="rounded-lg border border-red-300 px-6 py-3 font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-40"
+              >
+                {unpublishing ? 'Unpublishing...' : 'Unpublish'}
+              </button>
+            )}
+
+            {artwork.productId && (
+              <button
+                type="button"
+                onClick={handleDeleteProduct}
+                disabled={
+                  deletingProduct ||
+                  saving ||
+                  publishing ||
+                  unpublishing
+                }
+                className="rounded-lg border border-red-300 px-6 py-3 font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {deletingProduct ? 'Deleting product...' : 'Delete Product'}
+              </button>
+            )}
+
+            <button
+              type="button"
               onClick={handleExport}
               disabled={
                 exporting ||
                 saving ||
                 generating ||
-                checkingSlug ||
-                (details.slug !== '' && slugAvailable !== true) ||
-                checkingMockups ||
                 hasUnsavedChanges ||
                 details.status !== 'ready' ||
-                details.colors.length === 0 ||
-                !details.colors.every((color) => availableMockups.includes(color))
+                checkingMockups ||
+                !details.colors.every((color) =>
+                  availableMockups.includes(color)
+                )
               }
-              className="rounded-lg bg-emerald-700 px-6 py-3 font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-lg border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-40"
             >
-              {exporting ? 'Exporting...' : 'Export to Storefront'}
+              {exporting ? 'Exporting...' : 'Download ZIP'}
             </button>
           </div>
 
@@ -1073,6 +1419,97 @@ export default function ArtworkDetailPage({ params }: { params: Promise<{ id: st
           {error && (
             <p className="mt-3 text-sm text-red-700">
               {error}
+            </p>
+          )}
+        </section>
+
+        {/* Linked Products */}
+        <section className="mt-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">Linked Products</h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                Products using this artwork.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-medium text-neutral-700">
+                {artwork.linkedProducts?.length ?? 0} products
+              </span>
+
+              <button
+                type="button"
+                onClick={handleCreateProduct}
+                disabled={creatingProduct || saving || deletingProduct}
+                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-40"
+              >
+                {creatingProduct ? 'Creating...' : '+ Create Product'}
+              </button>
+            </div>
+          </div>
+
+          {artwork.linkedProducts?.length ? (
+            <div className="divide-y divide-neutral-200">
+              {artwork.linkedProducts.map((product) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => {
+                    if (hasUnsavedChanges) {
+                      const confirmed = window.confirm(
+                        'You have unsaved changes. Discard them and open another product?'
+                      )
+
+                      if (!confirmed) return
+                    }
+
+                    window.location.href =
+                      `/library/${artwork.id}?brand=${encodeURIComponent(artwork.brand)}&productId=${encodeURIComponent(product.id)}`
+                  }}
+                  className={`flex w-full flex-wrap items-center justify-between gap-4 py-4 text-left transition hover:bg-neutral-50 ${
+                    product.id === artwork.productId ? 'bg-neutral-50' : ''
+                  }`}
+                >
+                  <div>
+                    <h3 className="font-semibold">
+                      {product.title || 'Untitled product'}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {product.productType}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        product.isPublished
+                          ? 'bg-green-100 text-green-800'
+                          : product.status === 'ready'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-neutral-100 text-neutral-600'
+                      }`}
+                    >
+                      {product.isPublished
+                        ? 'Published'
+                        : product.status === 'ready'
+                          ? 'Ready'
+                          : 'Draft'}
+                    </span>
+
+                    {product.id === artwork.productId && (
+                      <span className="text-xs font-medium text-neutral-400">
+                        Current product
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">
+              No products linked to this artwork yet.
             </p>
           )}
         </section>
