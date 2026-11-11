@@ -31,7 +31,6 @@ model Product {
   category    String   @default("")
   label       String   @default("")
   collections Json     @default("[]")
-  metadata    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -45,7 +44,6 @@ model Artwork {
   id        String    @id @default(uuid())
   brand     String
   filename  String    @default("artwork.png")
-  metadata  Json
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]

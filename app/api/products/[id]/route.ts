@@ -38,8 +38,7 @@ export async function PATCH(request: NextRequest, { params }: Context) {
         title: input.title, slug: input.slug, subtitle: input.subtitle,
         description: input.description, price: input.price, sizes: input.sizes,
         colors: input.colors, category: input.category, collections: input.collections,
-        label: input.label, status: input.status, productType: input.productType,
-        metadata: Prisma.DbNull
+        label: input.label, status: input.status, productType: input.productType
       }
     })
     return NextResponse.json({ product })

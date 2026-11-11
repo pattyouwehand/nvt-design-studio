@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { brands, type BrandId } from '@/lib/brands'
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
+import { brands, type BrandId } from '@/lib/brands'
 
 export default function HomePage() {
   const [file, setFile] = useState<File | null>(null)
@@ -12,9 +12,7 @@ export default function HomePage() {
   const [brand, setBrand] = useState<BrandId>('legends')
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
-  const [artworkId, setArtworkId] = useState<string | null>(null)
-  const [generating, setGenerating] = useState(false)
-  const [mockupUrl, setMockupUrl] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (!file) {
@@ -36,22 +34,21 @@ export default function HomePage() {
     if (!selectedFile) return
 
     if (selectedFile.type !== 'image/png') {
-      alert('Please upload a PNG file.')
+      setMessage('Please upload a PNG file.')
+      event.target.value = ''
       return
     }
-    setArtworkId(null)
-    setMockupUrl(null)
-    setMessage('')
+
     setFile(selectedFile)
+    setSaved(false)
+    setMessage('')
   }
 
   async function handleUpload() {
-    if (!file || uploading || generating) return
+    if (!file || uploading || saved) return
 
     setUploading(true)
     setMessage('')
-    setArtworkId(null)
-    setMockupUrl(null)
 
     try {
       const formData = new FormData()
@@ -60,7 +57,7 @@ export default function HomePage() {
 
       const response = await fetch('/api/artworks', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
 
       const result = await response.json()
@@ -69,53 +66,16 @@ export default function HomePage() {
         throw new Error(result.error || 'Upload failed.')
       }
 
-      setArtworkId(result.id)
-      setMessage(`Artwork saved successfully! (${result.width} × ${result.height})`)
-
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Upload failed.')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  async function handleGenerateMockup() {
-    if (!artworkId || generating) return
-
-    setGenerating(true)
-    setMessage('')
-
-    try {
-      const response = await fetch('/api/mockups', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          brand,
-          id: artworkId,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(
-          result.error || 'Mockup generation failed.'
-        )
-      }
-
-      setMockupUrl(`/api/mockups/${artworkId}?brand=${brand}&v=${Date.now()}`)
-      setMessage('Mockup generated successfully!')
-
+      setSaved(true)
+      setMessage(
+        `Artwork saved successfully! (${result.artwork.width} × ${result.artwork.height})`
+      )
     } catch (error) {
       setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Mockup generation failed.'
+        error instanceof Error ? error.message : 'Upload failed.'
       )
     } finally {
-      setGenerating(false)
+      setUploading(false)
     }
   }
 
@@ -132,33 +92,36 @@ export default function HomePage() {
               Design Studio
             </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/library"
-              className="rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700"
-            >
-              View artwork library →
-            </Link>
-          </div>
+
+          <Link
+            href="/library"
+            className="rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700"
+          >
+            View artwork library →
+          </Link>
         </header>
+
         <div className="grid gap-8 md:grid-cols-2">
           <section className="rounded-2xl border border-neutral-200 bg-white p-8">
             <h2 className="mb-6 text-xl font-semibold">
               Upload artwork
             </h2>
+
             <label className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 p-6 text-center transition hover:border-neutral-500">
               <span className="mb-3 text-4xl">↑</span>
+
               <span className="font-medium">
                 Choose your artwork
               </span>
+
               <span className="mt-2 text-sm text-neutral-500">
-                Transparent background and PNG recommended
+                Transparent PNG recommended
               </span>
 
               <input
                 type="file"
                 accept="image/png"
-                disabled={uploading || generating}
+                disabled={uploading}
                 onChange={handleFileChange}
                 className="sr-only"
               />
@@ -172,6 +135,7 @@ export default function HomePage() {
                 </p>
               </div>
             )}
+
             <div className="mt-6 space-y-4">
               <div>
                 <label
@@ -185,11 +149,10 @@ export default function HomePage() {
                   <select
                     id="brand"
                     value={brand}
-                    disabled={uploading || generating}
+                    disabled={uploading}
                     onChange={(event) => {
                       setBrand(event.target.value as BrandId)
-                      setArtworkId(null)
-                      setMockupUrl(null)
+                      setSaved(false)
                       setMessage('')
                     }}
                     className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -213,19 +176,14 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={!file || uploading || generating}
+                disabled={!file || uploading || saved}
                 className="w-full rounded-lg bg-neutral-900 px-5 py-3 font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {uploading ? 'Uploading...' : 'Save artwork'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleGenerateMockup}
-                disabled={!artworkId || generating || uploading}
-                className="w-full rounded-lg bg-[#171717] px-5 py-3 font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {generating ? 'Generating...' : 'Generate mockup'}
+                {uploading
+                  ? 'Uploading...'
+                  : saved
+                    ? 'Artwork saved'
+                    : 'Save artwork'}
               </button>
 
               {message && (
@@ -233,64 +191,41 @@ export default function HomePage() {
                   {message}
                 </p>
               )}
+
+              {saved && (
+                <Link
+                  href="/library"
+                  className="block text-center text-sm font-semibold text-neutral-900 underline underline-offset-4 hover:text-neutral-600"
+                >
+                  View artwork in library →
+                </Link>
+              )}
             </div>
           </section>
+
           <section className="rounded-2xl border border-neutral-200 bg-white p-8">
             <h2 className="mb-6 text-xl font-semibold">
               Preview
             </h2>
 
-            <div className="grid gap-6">
-              <div>
-                <h3 className="mb-3 text-sm font-medium">
-                  Original artwork
-                </h3>
-
-                <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 p-6">
-                  {preview ? (
-                    <Image
-                      src={preview}
-                      alt="Artwork preview"
-                      width={400}
-                      height={400}
-                      unoptimized
-                      className="max-h-64 w-auto object-contain"
-                    />
-                  ) : (
-                    <p className="text-sm text-neutral-500">
-                      Your artwork will appear here.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-3 text-sm font-medium">
-                  Generated mockup
-                </h3>
-
-                <div className="flex min-h-80 items-center justify-center overflow-hidden rounded-xl bg-[#F5F2EB] p-6">
-                  {mockupUrl ? (
-                    <Image
-                      src={mockupUrl}
-                      alt="Generated shirt mockup"
-                      width={500}
-                      height={600}
-                      unoptimized
-                      className="h-auto max-h-96 w-auto object-contain"
-                    />
-                  ) : (
-                    <p className="text-sm text-neutral-500">
-                      Generate a mockup to see the result.
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="flex min-h-96 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 p-8">
+              {preview ? (
+                <Image
+                  src={preview}
+                  alt="Artwork preview"
+                  width={500}
+                  height={500}
+                  unoptimized
+                  className="max-h-96 w-auto max-w-full object-contain"
+                />
+              ) : (
+                <p className="text-sm text-neutral-500">
+                  Your artwork will appear here.
+                </p>
+              )}
             </div>
           </section>
-
         </div>
-
       </div>
     </main>
   )
