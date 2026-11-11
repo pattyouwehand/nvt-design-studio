@@ -91,7 +91,7 @@ export default function ProductLibrary() {
         {!loading && !error && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((product) => (
-              <Link key={product.id} href={`/library/${product.artworkId}?brand=${product.brand}&productId=${product.id}`} className="overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+              <Link key={product.id} href={`/products/${product.id}`} className="overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
                 <ProductThumbnail product={product} />
                 <div className="p-4">
                   <p className="truncate font-semibold">{product.title || 'Untitled draft'}</p>
