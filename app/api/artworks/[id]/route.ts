@@ -1,176 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isBrandId } from '@/lib/brands'
 import { isArtworkId } from '@/lib/artworks'
-import { getArtworkById, updateArtworkMetadata, isArtworkSlugTaken, deleteArtwork } from '@/lib/artworkDatabase'
-import { validateProductMetadata } from '@/lib/productMetadata'
 import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import { deleteArtworkFiles } from '@/lib/artworkStorage'
 
 export const runtime = 'nodejs'
+type Context = { params: Promise<{ id: string }> }
 
-export async function GET( request: NextRequest, { params }: { params: Promise<{ id: string }> } ) {
-  const { id } = await params
+async function identify(request: NextRequest, context: Context) {
+  const { id } = await context.params
   const brand = request.nextUrl.searchParams.get('brand')
-  const user = await getStudioUser()
 
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
-  if (!brand || !isBrandId(brand) || !isArtworkId(id)) {
-    return NextResponse.json(
-      { error: 'Invalid artwork.' },
-      { status: 400 }
-    )
-  }
-
-  try {
-    const artwork = await getArtworkById(brand, id)
-
-    if (!artwork) {
-      return NextResponse.json(
-        { error: 'Artwork not found.' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json({
-      ...artwork,
-      width: null,
-      height: null
-    })
-  } catch (error) {
-    console.error('Unable to load artwork:', error)
-
-    return NextResponse.json(
-      { error: 'Unable to load artwork.' },
-      { status: 500 }
-    )
-  }
+  return brand && isBrandId(brand) && isArtworkId(id) ? { id, brand } : null
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const brand = request.nextUrl.searchParams.get('brand')
-  const user = await getStudioUser()
-
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
-  if (!brand || !isBrandId(brand) || !isArtworkId(id)) {
-    return NextResponse.json(
-      { error: 'Invalid artwork.' },
-      { status: 400 }
-    )
-  }
-
-  try {
-    const metadata: unknown = await request.json()
-
-    if (!validateProductMetadata(brand, metadata)) {
-      return NextResponse.json(
-        { error: 'Invalid product details.' },
-        { status: 400 }
-      )
-    }
-
-    if (
-      metadata.slug &&
-      await isArtworkSlugTaken(brand, metadata.slug, id)
-    ) {
-      return NextResponse.json(
-        { error: 'This URL slug is already in use for this brand.' },
-        { status: 409 }
-      )
-    }
-
-    const updated = await updateArtworkMetadata(
-      brand,
-      id,
-      metadata
-    )
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: 'Artwork not found.' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json({
-      success: true,
-      metadata
+export async function GET(request: NextRequest, context: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const identity = await identify(request, context)
+  if (!identity) return NextResponse.json({ error: 'Invalid artwork' }, { status: 400 })
+  const artwork = await prisma.artwork.findFirst({ where: identity })
+  if (!artwork) return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })
+  const [products, published] = await Promise.all([
+    prisma.product.findMany({
+      where: { artworkId: identity.id, brand: identity.brand },
+      select: { id: true, title: true, slug: true, productType: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'asc' }
+    }),
+    prisma.publishedProduct.findMany({
+      where: { brand: identity.brand }, select: { productId: true }
     })
-  } catch (error) {
-    console.error('Unable to save product details:', error)
-
-    return NextResponse.json(
-      { error: 'Unable to save product details.' },
-      { status: 500 }
-    )
-  }
+  ])
+  const publishedIds = new Set(published.map((item) => item.productId))
+  return NextResponse.json({
+    id: artwork.id, brand: artwork.brand, filename: artwork.filename,
+    createdAt: artwork.createdAt.toISOString(),
+    linkedProducts: products.map((product) => ({ ...product, isPublished: publishedIds.has(product.id) }))
+  })
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const user = await getStudioUser()
+export async function PUT() {
+  return NextResponse.json({ error: 'Artwork metadata editing has moved to the Product Editor.' }, { status: 410 })
+}
 
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
+export async function DELETE(request: NextRequest, context: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const identity = await identify(request, context)
+  if (!identity) return NextResponse.json({ error: 'Invalid artwork' }, { status: 400 })
+  if (await prisma.product.count({ where: { artworkId: identity.id, brand: identity.brand } })) {
+    return NextResponse.json({ error: 'Delete linked products first.' }, { status: 409 })
   }
-
-  const { id } = await params
-  const brand = request.nextUrl.searchParams.get('brand')
-
-  if (!brand || !isBrandId(brand) || !isArtworkId(id)) {
-    return NextResponse.json(
-      { error: 'Invalid artwork.' },
-      { status: 400 }
-    )
-  }
-
-  try {
-    const artwork = await getArtworkById(brand, id)
-
-    if (!artwork) {
-      return NextResponse.json(
-        { error: 'Artwork not found.' },
-        { status: 404 }
-      )
-    }
-
-    // Remove original artwork and generated mockups
-    await deleteArtworkFiles(brand, id)
-
-    // Remove database record
-    const deleted = await deleteArtwork(brand, id)
-
-    if (!deleted) {
-      return NextResponse.json(
-        { error: 'Artwork could not be deleted.' },
-        { status: 409 }
-      )
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Unable to delete artwork:', error)
-
-    return NextResponse.json(
-      { error: 'Unable to delete artwork.' },
-      { status: 500 }
-    )
-  }
+  const result = await prisma.artwork.deleteMany({ where: identity })
+  if (!result.count) return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })
+  try { await deleteArtworkFiles(identity.brand, identity.id) }
+  catch (error) { console.error('Artwork deleted; storage cleanup failed:', error); return NextResponse.json({ success: true, warning: 'Storage cleanup failed.' }) }
+  return NextResponse.json({ success: true })
 }

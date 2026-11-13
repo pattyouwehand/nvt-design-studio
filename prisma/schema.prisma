@@ -26,7 +26,11 @@ model Product {
   subtitle    String?
   description String?
   price       Float?
-  metadata    Json?
+  sizes       Json     @default("[]")
+  colors      Json     @default("[]")
+  category    String   @default("")
+  label       String   @default("")
+  collections Json     @default("[]")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -40,7 +44,6 @@ model Artwork {
   id        String    @id @default(uuid())
   brand     String
   filename  String    @default("artwork.png")
-  metadata  Json
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   products  Product[]
@@ -69,4 +72,101 @@ model ProductSharedImage {
   sharedImage SharedImage @relation(fields: [sharedImageId], references: [id])
 
   @@id([productId, sharedImageId])
+}
+
+model PublishedProduct {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  brand       String
+  slug        String
+  data        Json
+  publishedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brand, slug])
+  @@index([brand])
+}
+
+model Category {
+  id          String @id
+  title       String
+  description String?
+}
+
+model Collection {
+  id           String  @id
+  slug         String  @unique
+  title        String
+  description  String?
+  listingImage String?
+}
+
+model Label {
+  id       String @id
+  title    String
+  keywords Json
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique
+  email     String?  @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  pending
+  paid
+  processing
+  shipped
+  delivered
+  cancelled
+  refunded
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  customerId            String?
+  customer              Customer?   @relation(fields: [customerId], references: [id])
+  status                OrderStatus @default(pending)
+  subtotal              Int
+  shippingCost          Int
+  discountAmount        Int         @default(0)
+  total                 Int
+  currency              String      @default("eur")
+  stripePaymentIntentId String?     @unique
+  shippingAddress       Json?
+  customerNote          String?
+  items                 OrderItem[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId String?
+  variantId String?
+  title     String
+  unitPrice Int
+  quantity  Int
+  meta      Json?
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  brand     String
+  name      String
+  email     String
+  message   String
+  status    String   @default("new")
+  emailSent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

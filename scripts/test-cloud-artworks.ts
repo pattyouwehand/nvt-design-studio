@@ -17,7 +17,6 @@ async function main() {
       id: artwork.id,
       brand: artwork.brand,
       filename: artwork.filename,
-      metadata: artwork.metadata,
       createdAt: artwork.createdAt.toISOString()
     })
   }
