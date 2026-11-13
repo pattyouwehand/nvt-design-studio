@@ -1,45 +1,8 @@
 import 'server-only'
-import path from 'node:path'
-import { readFile, writeFile } from 'node:fs/promises'
 import type { BrandId } from '@/lib/brands'
-import { getArtworkDirectory } from '@/lib/artworks'
 import { productOptions } from '@/lib/productOptions'
-import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
 import { getProductType } from '@/lib/catalog/products'
-import { prisma } from '@/lib/prisma'
-
-export async function getProductMetadata( brand: BrandId, id: string ): Promise<ProductMetadata> {
-  const filePath = path.join(
-    getArtworkDirectory(brand, id),
-    'metadata.json'
-  )
-
-  try {
-    const content = await readFile(filePath, 'utf8')
-    const saved = JSON.parse(content) as Partial<ProductMetadata>
-
-    return {
-      ...defaultProductMetadata,
-      ...saved,
-      colors: Array.isArray(saved.colors) ? saved.colors : ['black'],
-      sizes: Array.isArray(saved.sizes) ? saved.sizes : [],
-      collections: Array.isArray(saved.collections) ? saved.collections : []
-    }
-  } catch (error) {
-    if (
-      (error as NodeJS.ErrnoException).code === 'ENOENT'
-    ) {
-      return {
-        ...defaultProductMetadata,
-        sizes: [],
-        collections: []
-      }
-    }
-
-    throw error
-  }
-}
-
+import type { ProductMetadata } from '@/lib/productMetadataTypes'
 
 export function validateProductMetadata( brand: BrandId, value: unknown ): value is ProductMetadata {
   if (!value || typeof value !== 'object') return false
@@ -103,44 +66,4 @@ export function validateProductMetadata( brand: BrandId, value: unknown ): value
 
     (data.status === 'draft' || data.status === 'ready')
   )
-}
-
-export async function saveProductMetadata(brand: BrandId, id: string, metadata: ProductMetadata) {
-  const filePath = path.join(
-    getArtworkDirectory(brand, id),
-    'metadata.json'
-  )
-
-  await writeFile(
-    filePath,
-    JSON.stringify(metadata, null, 2),
-    'utf8'
-  )
-}
-
-export async function isSlugTaken(
-  brand: BrandId,
-  slug: string,
-  excludeArtworkId?: string
-): Promise<boolean> {
-  if (!slug) return false
-
-  const existingProduct = await prisma.product.findFirst({
-    where: {
-      brand,
-      slug,
-      ...(excludeArtworkId
-        ? {
-            NOT: {
-              artworkId: excludeArtworkId
-            }
-          }
-        : {})
-    },
-    select: {
-      id: true
-    }
-  })
-
-  return existingProduct !== null
 }

@@ -1,0 +1,5722 @@
+﻿=== NVT DESIGN STUDIO - CLEANUP REVIEW ===
+
+========== app/StudioHome.tsx ==========
+
+'use client'
+
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { ChevronDown } from 'lucide-react'
+import { brands, type BrandId } from '@/lib/brands'
+
+export default function HomePage() {
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [brand, setBrand] = useState<BrandId>('legends')
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null)
+      return
+    }
+
+    const url = URL.createObjectURL(file)
+    setPreview(url)
+
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0]
+
+    if (!selectedFile) return
+
+    if (selectedFile.type !== 'image/png') {
+      setMessage('Please upload a PNG file.')
+      event.target.value = ''
+      return
+    }
+
+    setFile(selectedFile)
+    setSaved(false)
+    setMessage('')
+  }
+
+  async function handleUpload() {
+    if (!file || uploading || saved) return
+
+    setUploading(true)
+    setMessage('')
+
+    try {
+      const formData = new FormData()
+      formData.append('artwork', file)
+      formData.append('brand', brand)
+
+      const response = await fetch('/api/artworks', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed.')
+      }
+
+      setSaved(true)
+      setMessage(
+        `Artwork saved successfully! (${result.artwork.width} Ã— ${result.artwork.height})`
+      )
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Upload failed.'
+      )
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#F5F2EB] px-6 py-12 text-[#171717]">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-10 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.3em] text-neutral-500">
+              NVT Company
+            </p>
+
+            <h1 className="text-4xl font-bold tracking-tight">
+              Design Studio
+            </h1>
+          </div>
+
+          <Link
+            href="/library"
+            className="rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700"
+          >
+            View artwork library â†’
+          </Link>
+        </header>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <section className="rounded-2xl border border-neutral-200 bg-white p-8">
+            <h2 className="mb-6 text-xl font-semibold">
+              Upload artwork
+            </h2>
+
+            <label className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 p-6 text-center transition hover:border-neutral-500">
+              <span className="mb-3 text-4xl">â†‘</span>
+
+              <span className="font-medium">
+                Choose your artwork
+              </span>
+
+              <span className="mt-2 text-sm text-neutral-500">
+                Transparent PNG recommended
+              </span>
+
+              <input
+                type="file"
+                accept="image/png"
+                disabled={uploading}
+                onChange={handleFileChange}
+                className="sr-only"
+              />
+            </label>
+
+            {file && (
+              <div className="mt-5 text-sm">
+                <p className="font-medium">{file.name}</p>
+                <p className="text-neutral-500">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            )}
+
+            <div className="mt-6 space-y-4">
+              <div>
+                <label
+                  htmlFor="brand"
+                  className="mb-2 block text-sm font-medium"
+                >
+                  Brand
+                </label>
+
+                <div className="relative">
+                  <select
+                    id="brand"
+                    value={brand}
+                    disabled={uploading}
+                    onChange={(event) => {
+                      setBrand(event.target.value as BrandId)
+                      setSaved(false)
+                      setMessage('')
+                    }}
+                    className="w-full appearance-none cursor-pointer rounded-lg border border-neutral-300 bg-white py-3 pl-5 pr-12 text-sm text-neutral-700 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {brands.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <ChevronDown
+                    size={18}
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={!file || uploading || saved}
+                className="w-full rounded-lg bg-neutral-900 px-5 py-3 font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {uploading
+                  ? 'Uploading...'
+                  : saved
+                    ? 'Artwork saved'
+                    : 'Save artwork'}
+              </button>
+
+              {message && (
+                <p role="status" className="text-sm text-neutral-600">
+                  {message}
+                </p>
+              )}
+
+              {saved && (
+                <Link
+                  href="/library"
+                  className="block text-center text-sm font-semibold text-neutral-900 underline underline-offset-4 hover:text-neutral-600"
+                >
+                  View artwork in library â†’
+                </Link>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-neutral-200 bg-white p-8">
+            <h2 className="mb-6 text-xl font-semibold">
+              Preview
+            </h2>
+
+            <div className="flex min-h-96 items-center justify-center overflow-hidden rounded-xl bg-neutral-100 p-8">
+              {preview ? (
+                <Image
+                  src={preview}
+                  alt="Artwork preview"
+                  width={500}
+                  height={500}
+                  unoptimized
+                  className="max-h-96 w-auto max-w-full object-contain"
+                />
+              ) : (
+                <p className="text-sm text-neutral-500">
+                  Your artwork will appear here.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+========== app/api/artworks/[id]/export/route.ts ==========
+
+
+========== app/api/artworks/[id]/image/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { isBrandId } from '@/lib/brands'
+import { isArtworkId } from '@/lib/artworks'
+import { getArtworkImage } from '@/lib/artworkStorage'
+import { getStudioUser } from '@/lib/auth'
+
+export const runtime = 'nodejs'
+
+export async function GET(request: NextRequest,{ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const brand = request.nextUrl.searchParams.get('brand')
+  const user = await getStudioUser()
+
+  if (!user) {
+    return Response.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  if (!brand || !isBrandId(brand) || !isArtworkId(id)) {
+    return NextResponse.json(
+      { error: 'Invalid artwork.' },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const image = await getArtworkImage(brand, id)
+
+    return new NextResponse(new Uint8Array(image), {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'no-store'
+      },
+    })
+  } catch (error) {
+    console.error('Unable to load artwork image:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to load artwork.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/artworks/[id]/products/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
+import { prisma } from '@/lib/prisma'
+import { getStudioUser } from '@/lib/auth'
+import { isBrandId } from '@/lib/brands'
+import { isArtworkId } from '@/lib/artworks'
+import { getProductType } from '@/lib/catalog/products'
+
+export const runtime = 'nodejs'
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!await getStudioUser()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  const brand = request.nextUrl.searchParams.get('brand')
+  if (!brand || !isBrandId(brand) || !isArtworkId(id)) return NextResponse.json({ error: 'Invalid artwork.' }, { status: 400 })
+  try {
+    const artwork = await prisma.artwork.findFirst({ where: { id, brand }, select: { id: true } })
+    if (!artwork) return NextResponse.json({ error: 'Artwork not found.' }, { status: 404 })
+    const body: unknown = await request.json()
+    const typeId = body && typeof body === 'object' && 'productType' in body ? body.productType : null
+    const productType = typeof typeId === 'string' ? getProductType(typeId) : undefined
+    if (!productType) return NextResponse.json({ error: 'Invalid product type.' }, { status: 400 })
+    const productId = randomUUID()
+    const product = await prisma.product.create({
+      data: {
+        id: productId, artworkId: id, brand, productType: productType.id,
+        title: '', slug: `draft-${productId}`, status: 'draft',
+        subtitle: '', description: '', price: null,
+        sizes: [], colors: [], category: '', label: '', collections: []
+      },
+      select: { id: true }
+    })
+    return NextResponse.json({ success: true, productId: product.id }, { status: 201 })
+  } catch (error) {
+    console.error('Unable to create product:', error)
+    return NextResponse.json({ error: 'Unable to create product.' }, { status: 500 })
+  }
+}
+
+========== app/api/artworks/[id]/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { isBrandId } from '@/lib/brands'
+import { isArtworkId } from '@/lib/artworks'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { deleteArtworkFiles } from '@/lib/artworkStorage'
+
+export const runtime = 'nodejs'
+type Context = { params: Promise<{ id: string }> }
+
+async function identify(request: NextRequest, context: Context) {
+  const { id } = await context.params
+  const brand = request.nextUrl.searchParams.get('brand')
+
+  return brand && isBrandId(brand) && isArtworkId(id) ? { id, brand } : null
+}
+
+export async function GET(request: NextRequest, context: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const identity = await identify(request, context)
+  if (!identity) return NextResponse.json({ error: 'Invalid artwork' }, { status: 400 })
+  const artwork = await prisma.artwork.findFirst({ where: identity })
+  if (!artwork) return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })
+  const [products, published] = await Promise.all([
+    prisma.product.findMany({
+      where: { artworkId: identity.id, brand: identity.brand },
+      select: { id: true, title: true, slug: true, productType: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'asc' }
+    }),
+    prisma.publishedProduct.findMany({
+      where: { brand: identity.brand }, select: { productId: true }
+    })
+  ])
+  const publishedIds = new Set(published.map((item) => item.productId))
+  return NextResponse.json({
+    id: artwork.id, brand: artwork.brand, filename: artwork.filename,
+    createdAt: artwork.createdAt.toISOString(),
+    linkedProducts: products.map((product) => ({ ...product, isPublished: publishedIds.has(product.id) }))
+  })
+}
+
+export async function PUT() {
+  return NextResponse.json({ error: 'Artwork metadata editing has moved to the Product Editor.' }, { status: 410 })
+}
+
+export async function DELETE(request: NextRequest, context: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const identity = await identify(request, context)
+  if (!identity) return NextResponse.json({ error: 'Invalid artwork' }, { status: 400 })
+  if (await prisma.product.count({ where: { artworkId: identity.id, brand: identity.brand } })) {
+    return NextResponse.json({ error: 'Delete linked products first.' }, { status: 409 })
+  }
+  const result = await prisma.artwork.deleteMany({ where: identity })
+  if (!result.count) return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })
+  try { await deleteArtworkFiles(identity.brand, identity.id) }
+  catch (error) { console.error('Artwork deleted; storage cleanup failed:', error); return NextResponse.json({ success: true, warning: 'Storage cleanup failed.' }) }
+  return NextResponse.json({ success: true })
+}
+
+========== app/api/artworks/route.ts ==========
+
+import { randomUUID } from 'node:crypto'
+import { NextRequest, NextResponse } from 'next/server'
+import sharp from 'sharp'
+import { isBrandId } from '@/lib/brands'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { uploadArtworkImage } from '@/lib/artworkStorage'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+
+export const runtime = 'nodejs'
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024
+
+export async function GET() {
+  if (!(await getStudioUser())) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const artworks = await prisma.artwork.findMany({
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return NextResponse.json({
+      artworks: artworks.map((artwork) => ({
+        id: artwork.id,
+        brand: artwork.brand,
+        filename: artwork.filename,
+        createdAt: artwork.createdAt.toISOString(),
+        updatedAt: artwork.updatedAt.toISOString(),
+        productCount: artwork._count.products,
+      })),
+    })
+  } catch (error) {
+    console.error('Unable to load artworks:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to load artworks.' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!(await getStudioUser())) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const formData = await request.formData()
+    const brand = formData.get('brand')
+    const file = formData.get('artwork')
+
+    if (
+      typeof brand !== 'string' ||
+      !isBrandId(brand)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid brand.' },
+        { status: 400 }
+      )
+    }
+
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: 'Please select a PNG file.' },
+        { status: 400 }
+      )
+    }
+
+    if (
+      file.size === 0 ||
+      file.size > MAX_FILE_SIZE
+    ) {
+      return NextResponse.json(
+        { error: 'File must be smaller than 25 MB.' },
+        { status: 400 }
+      )
+    }
+
+    const buffer = Buffer.from(
+      await file.arrayBuffer()
+    )
+
+    const metadata = await sharp(buffer).metadata()
+
+    if (
+      metadata.format !== 'png' ||
+      !metadata.width ||
+      !metadata.height ||
+      metadata.width > 10000 ||
+      metadata.height > 10000
+    ) {
+      return NextResponse.json(
+        { error: 'Please upload a valid PNG image.' },
+        { status: 400 }
+      )
+    }
+
+    const id = randomUUID()
+
+    await uploadArtworkImage(brand, id, buffer)
+
+    try {
+      const artwork = await prisma.artwork.create({
+        data: {
+          id,
+          brand,
+          filename: file.name,
+        },
+      })
+
+      return NextResponse.json(
+        {
+          success: true,
+          artwork: {
+            id: artwork.id,
+            brand: artwork.brand,
+            filename: artwork.filename,
+            width: metadata.width,
+            height: metadata.height
+          }
+        },
+        { status: 201 }
+      )
+    } catch (databaseError) {
+      const { error: cleanupError } =
+        await supabaseAdmin.storage
+          .from('artworks')
+          .remove([`${brand}/${id}/artwork.png`])
+
+      if (cleanupError) {
+        console.error(
+          'Unable to clean up uploaded artwork:',
+          cleanupError
+        )
+      }
+
+      throw databaseError
+    }
+  } catch (error) {
+    console.error('Artwork upload failed:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to upload artwork.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/mockups/[id]/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { isBrandId } from '@/lib/brands'
+import { isArtworkId } from '@/lib/artworks'
+import { getProductType } from '@/lib/catalog/products'
+import { getArtworkMockup } from '@/lib/artworkStorage'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export const runtime = 'nodejs'
+type Context = { params: Promise<{ id: string }> }
+async function serve(request: NextRequest, { params }: Context, head: boolean) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  const brand = request.nextUrl.searchParams.get('brand')
+  const type = request.nextUrl.searchParams.get('productType') ?? 'classic-tee'
+  const color = request.nextUrl.searchParams.get('color') ?? 'black'
+  const product = getProductType(type)
+  if (!brand || !isBrandId(brand) || !isArtworkId(id) || !product?.colors.some((item) => item.id === color)) {
+    return NextResponse.json({ error: 'Invalid mockup parameters' }, { status: 400 })
+  }
+  const exists = await prisma.artwork.findFirst({ where: { id, brand }, select: { id: true } })
+  if (!exists) return NextResponse.json({ error: 'Artwork not found' }, { status: 404 })
+  try {
+    const buffer = await getArtworkMockup(brand, id, `${type}-${color}-front.webp`)
+    return new NextResponse(head ? null : new Uint8Array(buffer), { status: 200, headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'no-store' } })
+  } catch {
+    return NextResponse.json({ error: 'Mockup not found' }, { status: 404 })
+  }
+}
+export async function GET(request: NextRequest, context: Context) { return serve(request, context, false) }
+export async function HEAD(request: NextRequest, context: Context) { return serve(request, context, true) }
+
+========== app/api/mockups/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { generateMockup } from '@/lib/mockup/generateMockup'
+import { getProductType } from '@/lib/catalog/products'
+import { isBrandId } from '@/lib/brands'
+import { isArtworkId } from '@/lib/artworks'
+import { getStudioUser } from '@/lib/auth'
+
+export const runtime = 'nodejs'
+
+export async function POST(request: NextRequest) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+  try {
+    const body = await request.json()
+
+    const {
+      brand,
+      id,
+      productType = 'classic-tee',
+      color = 'black',
+    } = body
+
+    if (
+      typeof brand !== 'string' ||
+      !isBrandId(brand) ||
+      typeof id !== 'string' ||
+      !isArtworkId(id)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid brand or artwork ID.' },
+        { status: 400 }
+      )
+    }
+
+    const product = typeof productType === 'string'
+      ? getProductType(productType)
+      : undefined
+
+    if (
+      !product ||
+      typeof color !== 'string' ||
+      !product.colors.some((item) => item.id === color)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid product type or color.' },
+        { status: 400 }
+      )
+    }
+
+    const result = await generateMockup(
+      brand,
+      id,
+      productType,
+      color
+    )
+
+    return NextResponse.json({
+      success: true,
+      filename: result.filename,
+      productType: result.productType,
+      color: result.color
+    })
+  } catch (error) {
+    console.error('Mockup generation failed:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to generate mockup.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/products/[id]/publish/route.ts ==========
+
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getStudioUser } from '@/lib/auth'
+import { getProductType } from '@/lib/catalog/products'
+import { getArtworkMockup } from '@/lib/artworkStorage'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { isBrandId } from '@/lib/brands'
+import { isArtworkId } from '@/lib/artworks'
+
+export const runtime = 'nodejs'
+
+const PUBLIC_BUCKET = 'product-images'
+
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  const { id } = await params
+
+  if (!isArtworkId(id)) {
+    return NextResponse.json(
+      { error: 'Invalid product ID.' },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: { artwork: true }
+    })
+
+    if (!product) {
+      return NextResponse.json(
+        { error: 'Product not found.' },
+        { status: 404 }
+      )
+    }
+
+    const brand = product.brand
+
+    if (
+      !isBrandId(brand) ||
+      product.artwork.brand !== brand
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid product brand.' },
+        { status: 400 }
+      )
+    }
+
+    const productType = getProductType(product.productType)
+
+    if (!productType) {
+      return NextResponse.json(
+        { error: 'Unknown product type.' },
+        { status: 400 }
+      )
+    }
+
+    const sizes = product.sizes
+    const colors = product.colors
+    const collections = product.collections
+
+    if (
+      product.status !== 'ready' ||
+      !product.title.trim() ||
+      !product.slug.trim() ||
+      product.price === null ||
+      !Number.isFinite(product.price) ||
+      product.price <= 0 ||
+      !Array.isArray(sizes) ||
+      sizes.length === 0 ||
+      !sizes.every((size) => typeof size === 'string') ||
+      !Array.isArray(colors) ||
+      colors.length === 0 ||
+      !colors.every((color) => typeof color === 'string') ||
+      !colors.every((color) =>
+        productType.colors.some((item) => item.id === color)
+      )
+    ) {
+      return NextResponse.json(
+        { error: 'Complete the product details before publishing.' },
+        { status: 400 }
+      )
+    }
+
+    // Prevent another product from using the same brand/slug.
+    const slugConflict = await prisma.publishedProduct.findFirst({
+      where: {
+        brand,
+        slug: product.slug,
+        productId: { not: product.id }
+      },
+      select: { id: true }
+    })
+
+    if (slugConflict) {
+      return NextResponse.json(
+        { error: 'This URL slug is already published for this brand.' },
+        { status: 409 }
+      )
+    }
+
+    const images: Record<string, string> = {}
+    const uploadedPaths: string[] = []
+
+    // Upload public mockups before updating the published snapshot.
+    for (const color of colors as string[]) {
+      const filename = `${productType.id}-${color}-front.webp`
+
+      // Read from the existing private artworks bucket.
+      const mockup = await getArtworkMockup(
+        brand,
+        product.artworkId,
+        filename
+      )
+
+      // Product ID ensures different clothing types do not collide.
+      const storagePath = `${brand}/${product.id}/${filename}`
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(PUBLIC_BUCKET)
+        .upload(storagePath, mockup, {
+          contentType: 'image/webp',
+          upsert: true,
+          cacheControl: '60'
+        })
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      uploadedPaths.push(storagePath)
+
+      const { data } = supabaseAdmin.storage
+        .from(PUBLIC_BUCKET)
+        .getPublicUrl(storagePath)
+
+      // Version query helps browsers refresh updated mockups.
+      images[color] = `${data.publicUrl}?v=${Date.now()}`
+    }
+
+    const snapshot = {
+      id: product.id,
+      artworkId: product.artworkId,
+      brand,
+      productType: product.productType,
+      title: product.title,
+      slug: product.slug,
+      subtitle: product.subtitle,
+      description: product.description ?? '',
+      price: product.price,
+      sizes,
+      colors,
+      category: product.category,
+      collections: Array.isArray(collections) ? collections : [],
+      images
+    }
+
+    const published = await prisma.publishedProduct.upsert({
+      where: { productId: product.id },
+      create: {
+        productId: product.id,
+        brand,
+        slug: product.slug,
+        data: snapshot
+      },
+      update: {
+        brand,
+        slug: product.slug,
+        data: snapshot
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      productId: published.productId,
+      publishedAt: published.publishedAt,
+      images: uploadedPaths.length
+    })
+  } catch (error) {
+    console.error('Product publishing failed:', error)
+
+    return NextResponse.json(
+      {
+        error: 'Unable to publish product. Check that all selected colors have generated mockups.'
+      },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  const { id } = await params
+
+  if (!isArtworkId(id)) {
+    return NextResponse.json(
+      { error: 'Invalid product ID.' },
+      { status: 400 }
+    )
+  }
+
+  try {
+    const published = await prisma.publishedProduct.findUnique({
+      where: { productId: id }
+    })
+
+    if (!published) {
+      return NextResponse.json(
+        { error: 'Product is not published.' },
+        { status: 404 }
+      )
+    }
+
+    // Remove the storefront snapshot.
+    await prisma.publishedProduct.delete({
+      where: { productId: id }
+    })
+
+    return NextResponse.json({
+      success: true,
+      productId: id
+    })
+  } catch (error) {
+    console.error('Unpublish failed:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to unpublish product.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/products/[id]/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getStudioUser } from '@/lib/auth'
+import { isArtworkId } from '@/lib/artworks'
+import { isBrandId } from '@/lib/brands'
+import { validateProductMetadata } from '@/lib/productMetadata'
+import { Prisma } from '@/lib/generated/prisma/client'
+
+export const runtime = 'nodejs'
+type Context = { params: Promise<{ id: string }> }
+
+export async function GET(_request: NextRequest, { params }: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  if (!isArtworkId(id)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+  const [product, published] = await Promise.all([
+    prisma.product.findUnique({ where: { id }, include: { artwork: { select: { brand: true } } } }),
+    prisma.publishedProduct.findUnique({ where: { productId: id }, select: { id: true } })
+  ])
+  if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  return NextResponse.json({ product: { ...product, isPublished: Boolean(published) } })
+}
+
+export async function PATCH(request: NextRequest, { params }: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  if (!isArtworkId(id)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+  const current = await prisma.product.findUnique({ where: { id }, select: { id: true, brand: true, artworkId: true } })
+  if (!current || !isBrandId(current.brand)) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  let input: unknown
+  try { input = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  if (!validateProductMetadata(current.brand, input)) return NextResponse.json({ error: 'Invalid product details' }, { status: 400 })
+  if (!input.slug.trim()) return NextResponse.json({ error: 'A slug is required' }, { status: 400 })
+  try {
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        title: input.title, slug: input.slug, subtitle: input.subtitle,
+        description: input.description, price: input.price, sizes: input.sizes,
+        colors: input.colors, category: input.category, collections: input.collections,
+        label: input.label, status: input.status, productType: input.productType
+      }
+    })
+    return NextResponse.json({ product })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'This slug is already in use for this brand' }, { status: 409 })
+    }
+    console.error('Unable to update product', error)
+    return NextResponse.json({ error: 'Unable to save product' }, { status: 500 })
+  }
+}
+
+export async function DELETE(_request: NextRequest, { params }: Context) {
+  if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await params
+  if (!isArtworkId(id)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+  const product = await prisma.product.findUnique({ where: { id }, select: { artworkId: true } })
+  if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  await prisma.$transaction(async (tx) => {
+    await tx.publishedProduct.deleteMany({ where: { productId: id } })
+    await tx.product.delete({ where: { id } })
+  })
+  return NextResponse.json({ success: true, artworkId: product.artworkId })
+}
+
+========== app/api/products/route.ts ==========
+
+import { NextResponse } from 'next/server'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export const runtime = 'nodejs'
+
+export async function GET() {
+  if (!(await getStudioUser())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const [products, published] = await Promise.all([
+      prisma.product.findMany({
+        select: {
+          id: true,
+          artworkId: true,
+          brand: true,
+          title: true,
+          slug: true,
+          productType: true,
+          status: true,
+          colors: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.publishedProduct.findMany({ select: { productId: true } })
+    ])
+
+    const publishedIds = new Set(published.map((item) => item.productId))
+    return NextResponse.json({
+      products: products.map((product) => ({
+        ...product,
+        isPublished: publishedIds.has(product.id)
+      }))
+    })
+  } catch (error) {
+    console.error('Unable to list products:', error)
+    return NextResponse.json({ error: 'Unable to load products.' }, { status: 500 })
+  }
+}
+
+========== app/api/shared-images/[id]/image/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+
+export const runtime = 'nodejs'
+
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const { id } = await context.params
+
+    const image = await prisma.sharedImage.findUnique({
+      where: { id }
+    })
+
+    if (!image) {
+      return NextResponse.json(
+        { error: 'Image not found.' },
+        { status: 404 }
+      )
+    }
+
+    const { data, error } = await supabaseAdmin.storage
+      .from('artworks')
+      .download(image.storagePath)
+
+    if (error || !data) {
+      return NextResponse.json(
+        { error: 'Unable to load image.' },
+        { status: 404 }
+      )
+    }
+
+    const buffer = await data.arrayBuffer()
+
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': 'image/webp',
+        'Cache-Control': 'private, max-age=3600',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    })
+  } catch (error) {
+    console.error('Shared image preview failed:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to load image.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/shared-images/[id]/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import sharp from 'sharp'
+import { randomUUID } from 'crypto'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
+const BUCKET = 'artworks'
+const MAX_FILE_SIZE = 15 * 1024 * 1024
+
+export async function PATCH( request: NextRequest, context: RouteContext ) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const { id } = await context.params
+    const body = await request.json()
+
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json(
+        { error: 'Invalid request.' },
+        { status: 400 }
+      )
+    }
+
+    const { name, productType, color } = body
+
+    if (
+      typeof name !== 'string' ||
+      !name.trim() ||
+      name.trim().length > 150
+    ) {
+      return NextResponse.json(
+        { error: 'Please enter a valid image name.' },
+        { status: 400 }
+      )
+    }
+
+    if (
+      (productType !== null && typeof productType !== 'string') ||
+      (color !== null && typeof color !== 'string') ||
+      (typeof productType === 'string' && productType.length > 100) ||
+      (typeof color === 'string' && color.length > 100)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid product type or color.' },
+        { status: 400 }
+      )
+    }
+
+    const existingImage = await prisma.sharedImage.findUnique({
+      where: { id }
+    })
+
+    if (!existingImage) {
+      return NextResponse.json(
+        { error: 'Image not found.' },
+        { status: 404 }
+      )
+    }
+
+    const image = await prisma.sharedImage.update({
+      where: { id },
+      data: {
+        name: name.trim(),
+        productType:
+          typeof productType === 'string'
+            ? productType.trim() || null
+            : null,
+        color:
+          typeof color === 'string'
+            ? color.trim() || null
+            : null
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      image
+    })
+  } catch (error) {
+    console.error('Unable to update shared image:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to update image.' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: RouteContext
+) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const { id } = await context.params
+
+    const existingImage = await prisma.sharedImage.findUnique({
+      where: { id }
+    })
+
+    if (!existingImage) {
+      return NextResponse.json(
+        { error: 'Image not found.' },
+        { status: 404 }
+      )
+    }
+
+    const formData = await request.formData()
+    const file = formData.get('image')
+
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: 'Please select an image.' },
+        { status: 400 }
+      )
+    }
+
+    if (
+      !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)
+    ) {
+      return NextResponse.json(
+        { error: 'Only PNG, JPEG and WebP images are allowed.' },
+        { status: 400 }
+      )
+    }
+
+    if (file.size === 0 || file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'Image must be smaller than 15 MB.' },
+        { status: 400 }
+      )
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    let optimizedImage: Buffer
+
+    try {
+      optimizedImage = await sharp(buffer, {
+        limitInputPixels: 40_000_000
+      })
+        .rotate()
+        .resize(1600, 1600, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .webp({
+          quality: 85,
+          effort: 6
+        })
+        .toBuffer()
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid or unsupported image file.' },
+        { status: 400 }
+      )
+    }
+
+    // A unique path avoids serving an outdated cached image.
+    const newStoragePath = `shared-images/${id}-${randomUUID()}.webp`
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(newStoragePath, optimizedImage, {
+        contentType: 'image/webp',
+        upsert: false
+      })
+
+    if (uploadError) {
+      console.error('Unable to upload replacement:', uploadError)
+
+      return NextResponse.json(
+        { error: 'Unable to upload replacement image.' },
+        { status: 500 }
+      )
+    }
+
+    try {
+      const image = await prisma.sharedImage.update({
+        where: { id },
+        data: {
+          storagePath: newStoragePath
+        }
+      })
+
+      // Do not delete the previous file here.
+      // Published storefronts may still reference its URL.
+      return NextResponse.json({
+        success: true,
+        image
+      })
+    } catch (error) {
+      await supabaseAdmin.storage
+        .from(BUCKET)
+        .remove([newStoragePath])
+
+      throw error
+    }
+  } catch (error) {
+    console.error('Unable to replace shared image:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to replace image.' },
+      { status: 500 }
+    )
+  }
+}
+
+
+export async function DELETE(
+  _request: NextRequest,
+  context: RouteContext
+) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const { id } = await context.params
+
+    const existingImage = await prisma.sharedImage.findUnique({
+      where: { id }
+    })
+
+    if (!existingImage) {
+      return NextResponse.json(
+        { error: 'Image not found.' },
+        { status: 404 }
+      )
+    }
+
+    // Never delete an image linked to a product.
+    const linkedProducts = await prisma.productSharedImage.count({
+      where: {
+        sharedImageId: id
+      }
+    })
+
+    if (linkedProducts > 0) {
+      return NextResponse.json(
+        {
+          error: `This image is used by ${linkedProducts} product(s). Remove the product links before deleting it.`
+        },
+        { status: 409 }
+      )
+    }
+
+    // Delete the database record first.
+    // The relation check above prevents deleting linked images.
+    await prisma.sharedImage.delete({
+      where: { id }
+    })
+
+    // Remove the current file from private Supabase Storage.
+    const { error: storageError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .remove([existingImage.storagePath])
+
+    if (storageError) {
+      console.error(
+        'Shared image deleted from database, but storage cleanup failed:',
+        storageError
+      )
+
+      return NextResponse.json({
+        success: true,
+        warning: 'Image deleted, but storage cleanup could not be completed.'
+      })
+    }
+
+    return NextResponse.json({
+      success: true
+    })
+  } catch (error) {
+    console.error('Unable to delete shared image:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to delete image.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/shared-images/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
+import sharp from 'sharp'
+import { getStudioUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+
+export const runtime = 'nodejs'
+
+const BUCKET = 'artworks'
+const MAX_FILE_SIZE = 25 * 1024 * 1024
+const MAX_DIMENSION = 10000
+
+export async function POST(request: NextRequest) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const formData = await request.formData()
+
+    const file = formData.get('image')
+    const name = formData.get('name')
+    const productType = formData.get('productType')
+    const color = formData.get('color')
+
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: 'Please select an image.' },
+        { status: 400 }
+      )
+    }
+
+    if (
+      typeof name !== 'string' ||
+      !name.trim() ||
+      name.trim().length > 150
+    ) {
+      return NextResponse.json(
+        { error: 'Please enter a valid image name.' },
+        { status: 400 }
+      )
+    }
+
+    if (file.size === 0 || file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'Image must be between 1 byte and 25 MB.' },
+        { status: 400 }
+      )
+    }
+
+    if (
+      (productType !== null && typeof productType !== 'string') ||
+      (color !== null && typeof color !== 'string') ||
+      (typeof productType === 'string' && productType.length > 100) ||
+      (typeof color === 'string' && color.length > 100)
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid product type or color.' },
+        { status: 400 }
+      )
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const metadata = await sharp(buffer).metadata()
+
+    if (
+      !metadata.format ||
+      !['png', 'jpeg', 'webp'].includes(metadata.format) ||
+      !metadata.width ||
+      !metadata.height ||
+      metadata.width > MAX_DIMENSION ||
+      metadata.height > MAX_DIMENSION
+    ) {
+      return NextResponse.json(
+        { error: 'Only valid PNG, JPEG and WebP images are supported.' },
+        { status: 400 }
+      )
+    }
+
+    // Convert the uploaded image to an optimized WebP.
+    const optimizedImage = await sharp(buffer)
+      .rotate()
+      .resize({
+        width: 1600,
+        height: 1600,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({
+        quality: 85,
+        effort: 6
+      })
+      .toBuffer()
+
+    const id = randomUUID()
+    const storagePath = `shared-images/${id}.webp`
+
+    // Upload the optimized image to Supabase Storage.
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(storagePath, optimizedImage, {
+        contentType: 'image/webp',
+        upsert: false
+      })
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    try {
+      // Save image metadata in PostgreSQL.
+      const image = await prisma.sharedImage.create({
+        data: {
+          id,
+          name: name.trim(),
+          storagePath,
+          productType:
+            typeof productType === 'string'
+              ? productType.trim() || null
+              : null,
+          color:
+            typeof color === 'string'
+              ? color.trim() || null
+              : null
+        }
+      })
+
+      return NextResponse.json(
+        {
+          success: true,
+          image
+        },
+        { status: 201 }
+      )
+    } catch (databaseError) {
+      // Remove the uploaded file if saving to the database fails.
+      const { error: cleanupError } = await supabaseAdmin.storage
+        .from(BUCKET)
+        .remove([storagePath])
+
+      if (cleanupError) {
+        console.error(
+          'Unable to clean up shared image:',
+          cleanupError
+        )
+      }
+
+      throw databaseError
+    }
+  } catch (error) {
+    console.error('Shared image upload failed:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to upload shared image.' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET() {
+  const user = await getStudioUser()
+
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const images = await prisma.sharedImage.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return NextResponse.json({ images })
+  } catch (error) {
+    console.error('Unable to load shared images:', error)
+
+    return NextResponse.json(
+      { error: 'Unable to load shared images.' },
+      { status: 500 }
+    )
+  }
+}
+
+========== app/api/slugs/check/route.ts ==========
+
+
+========== app/auth/callback/route.ts ==========
+
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get('code')
+
+  if (code) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (!error) {
+      return NextResponse.redirect(
+        `${origin}/auth/update-password`
+      )
+    }
+  }
+
+  return NextResponse.redirect(
+    `${origin}/forgot-password?error=invalid-link`
+  )
+}
+
+========== app/auth/update-password/page.tsx ==========
+
+'use client'
+
+import { useEffect, useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+
+export default function UpdatePasswordPage() {
+  const router = useRouter()
+  const [ready, setReady] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    async function checkSession() {
+      const { data, error } = await supabase.auth.getUser()
+      setReady(!error && !!data.user)
+    }
+
+    checkSession()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+          checkSession()
+        }
+      }
+    )
+
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    if (password.length < 8) {
+      setError('Password must contain at least 8 characters.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.updateUser({ password })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      setSuccess(true)
+      await supabase.auth.signOut()
+      router.refresh()
+    } catch {
+      setError('Unable to update your password. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f5f2ec] px-6 py-12">
+      <div className="w-full max-w-md">
+        <header className="mb-10 text-center">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-[#77716a]">
+            NVT Company
+          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-[#171717]">
+            Design Studio
+          </h1>
+          <p className="mt-3 text-sm text-[#77716a]">
+            Your creative workspace.
+          </p>
+        </header>
+
+        <div className="rounded-2xl border border-[#e7e3dc] bg-white p-8 md:p-10">
+          {success ? (
+            <>
+              <h2 className="text-2xl font-bold text-[#171717]">
+                Password updated!
+              </h2>
+              <p className="mt-3 text-sm text-[#77716a]">
+                Your password has been saved. You can now sign in.
+              </p>
+              <Link
+                href="/login"
+                className="mt-6 block rounded-lg bg-[#171717] px-4 py-3 text-center font-semibold text-white hover:bg-[#333]"
+              >
+                Go to sign in
+              </Link>
+            </>
+          ) : !ready ? (
+            <>
+              <h2 className="text-2xl font-bold text-[#171717]">
+                Set new password
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-[#77716a]">
+                Checking your reset link. If this page does not unlock,
+                request a new password reset email.
+              </p>
+              <Link
+                href="/forgot-password"
+                className="mt-5 inline-block text-sm underline"
+              >
+                Request a new link
+              </Link>
+            </>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-[#171717]">
+                  Set new password
+                </h2>
+                <p className="mt-2 text-sm text-[#77716a]">
+                  Choose a secure password for your Studio account.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="mb-2 block text-sm font-medium">
+                  New password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-lg border border-[#d9d9d9] px-4 py-3 outline-none focus:border-[#171717]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium">
+                  Confirm password
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="w-full rounded-lg border border-[#d9d9d9] px-4 py-3 outline-none focus:border-[#171717]"
+                />
+              </div>
+
+              {error && (
+                <p role="alert" className="text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-[#171717] px-4 py-3 font-semibold text-white hover:bg-[#333] disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : 'Save password'}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </main>
+  )
+}
+
+========== app/forgot-password/page.tsx ==========
+
+'use client'
+
+import { useState, type FormEvent } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback`
+      })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      setSent(true)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f5f2ec] px-6 py-12">
+      <div className="w-full max-w-md">
+        <header className="mb-10 text-center">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-[#77716a]">
+            NVT Company
+          </p>
+
+          <h1 className="text-4xl font-bold tracking-tight text-[#171717]">
+            Design Studio
+          </h1>
+
+          <p className="mt-3 text-sm text-[#77716a]">
+            Your creative workspace.
+          </p>
+        </header>
+
+        <div className="rounded-2xl border border-[#e7e3dc] bg-white p-8 md:p-10">
+          {sent ? (
+            <div>
+              <h2 className="text-2xl font-bold text-[#171717]">
+                Check your inbox
+              </h2>
+
+              <p className="mt-4 text-sm leading-6 text-[#77716a]">
+                If an account exists for this email address,
+                you&apos;ll receive a password reset link shortly.
+              </p>
+
+              <Link
+                href="/login"
+                className="mt-6 inline-block text-sm font-medium text-[#171717] underline underline-offset-4"
+              >
+                Back to sign in
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-[#171717]">
+                  Reset your password
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-[#77716a]">
+                  Enter your email address and we&apos;ll send you
+                  a link to set a new password.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-2 block text-sm font-medium text-[#171717]"
+                >
+                  Email address
+                </label>
+
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-[#171717] outline-none transition focus:border-[#171717] focus:ring-1 focus:ring-[#171717]"
+                />
+              </div>
+
+              {error && (
+                <p role="alert" className="text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-[#171717] px-4 py-3 font-semibold text-white transition hover:bg-[#333] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? 'Sending...' : 'Send reset link'}
+              </button>
+
+              <div className="text-center">
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-[#555] underline-offset-4 hover:underline"
+                >
+                  Back to sign in
+                </Link>
+              </div>
+            </form>
+          )}
+        </div>
+
+        <p className="mt-8 text-center text-xs text-[#77716a]">
+          Private workspace Â· NVT Company
+        </p>
+      </div>
+    </main>
+  )
+}
+
+========== app/layout.tsx ==========
+
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import './globals.css'
+import StudioFooter from '@/components/StudioFooter'
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"]
+})
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"]
+})
+
+export const metadata: Metadata = {
+  title: "Create Next App",
+  description: "Generated by create next app"
+}
+
+export default function RootLayout({ children }: Readonly<{children: React.ReactNode}>) {
+  return (
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#F5F2EB] flex-col`}>
+         <div className="flex-1">
+            {children}
+          </div>
+        <StudioFooter />
+      </body>
+    </html>
+  )
+}
+
+========== app/library/ArtworkLibrary.tsx ==========
+
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { brands, type BrandId } from '@/lib/brands'
+
+type ArtworkListItem = {
+  id: string
+  brand: BrandId
+  filename: string
+  createdAt: string
+}
+
+export default function ArtworkLibrary() {
+  const [artworks, setArtworks] = useState<ArtworkListItem[]>([])
+  const [brand, setBrand] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    async function load() {
+      try {
+        const response = await fetch('/api/artworks', { cache: 'no-store', signal: controller.signal })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Unable to load artworks.')
+        setArtworks(data.artworks)
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Unable to load artworks.')
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+    void load()
+    return () => controller.abort()
+  }, [])
+
+  const filtered = useMemo(() => artworks.filter((item) => brand === 'all' || item.brand === brand), [artworks, brand])
+
+  return (
+    <main className="min-h-screen bg-[#F5F2EB] px-6 py-12 text-[#171717]">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-neutral-500">NVT Design Studio</p>
+            <h1 className="text-4xl font-bold">Artwork Library</h1>
+            <p className="mt-3 text-neutral-600">Original artwork files, independent of products.</p>
+          </div>
+          <nav className="flex flex-wrap gap-3">
+            <Link href="/" className="rounded-lg bg-neutral-900 px-5 py-3 text-sm font-semibold text-white hover:bg-neutral-700">+ Upload artwork</Link>
+            <Link href="/products" className="rounded-lg border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold hover:bg-neutral-100">Product Library</Link>
+            <Link href="/shared-images" className="rounded-lg border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold hover:bg-neutral-100">Shared Images</Link>
+          </nav>
+        </header>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-neutral-600">{filtered.length} artworks</p>
+          <label className="flex items-center gap-3 text-sm font-medium">
+            Brand
+            <select value={brand} onChange={(event) => setBrand(event.target.value)} className="rounded-lg border border-neutral-300 bg-white px-4 py-2">
+              <option value="all">All brands</option>
+              {brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+        </div>
+        {loading && <p>Loading artworks...</p>}
+        {error && <p role="alert" className="text-red-700">{error}</p>}
+        {!loading && !error && filtered.length === 0 && <p className="rounded-xl bg-white p-10 text-center text-neutral-600">No artworks found.</p>}
+        {!loading && !error && (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtered.map((item) => (
+              <Link key={item.id} href={`/library/${item.id}?brand=${item.brand}`} className="overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+                <div className="relative aspect-square bg-neutral-100">
+                  <Image src={`/api/artworks/${item.id}/image?brand=${item.brand}`} alt={item.filename} fill unoptimized sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-contain p-5" />
+                </div>
+                <div className="p-4">
+                  <p className="truncate font-semibold" title={item.filename}>{item.filename}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{brands.find((entry) => entry.id === item.brand)?.name ?? item.brand}</p>
+                  <p className="mt-2 text-xs text-neutral-400">{new Date(item.createdAt).toLocaleDateString('en-GB')}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  )
+}
+
+========== app/library/[id]/ArtworkDetail.tsx ==========
+
+'use client'
+
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { brands, isBrandId, type BrandId } from '@/lib/brands'
+import { productCatalog } from '@/lib/catalog/products'
+
+type LinkedProduct = {
+  id: string
+  title: string
+  slug: string
+  productType: string
+  status: string
+  isPublished: boolean
+}
+type ArtworkDetails = {
+  id: string
+  brand: BrandId
+  filename: string
+  createdAt: string
+  linkedProducts: LinkedProduct[]
+}
+
+export default function ArtworkDetail({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const brandParam = searchParams.get('brand')
+  const brand = brandParam && isBrandId(brandParam) ? brandParam : null
+  const [id, setId] = useState<string | null>(null)
+  const [artwork, setArtwork] = useState<ArtworkDetails | null>(null)
+  const [productType, setProductType] = useState(productCatalog[0]?.id ?? 'classic-tee')
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void params.then(({ id: resolvedId }) => { if (active) setId(resolvedId) })
+    return () => { active = false }
+  }, [params])
+
+  useEffect(() => {
+    if (!id || !brand) { if (id) setLoading(false); return }
+    const controller = new AbortController()
+    async function load() {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await fetch(`/api/artworks/${id}?brand=${brand}`, { cache: 'no-store', signal: controller.signal })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Unable to load artwork.')
+        setArtwork(data)
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Unable to load artwork.')
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+    void load()
+    return () => controller.abort()
+  }, [id, brand])
+
+  async function createProduct() {
+    if (!id || !brand || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/artworks/${id}/products?brand=${brand}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productType })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to create product.')
+      router.push(`/products/${data.productId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to create product.')
+    } finally { setBusy(false) }
+  }
+
+  async function deleteArtwork() {
+    if (!id || !brand || !artwork || busy) return
+    if (artwork.linkedProducts.length > 0) {
+      setError('Remove linked products before deleting this artwork.')
+      return
+    }
+    if (!window.confirm(`Permanently delete ${artwork.filename}? This cannot be undone.`)) return
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/artworks/${id}?brand=${brand}`, { method: 'DELETE' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to delete artwork.')
+      router.push('/library')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete artwork.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#F5F2EB] px-6 py-12 text-[#171717]">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div><p className="mb-2 text-sm uppercase tracking-widest text-neutral-500">NVT Design Studio</p>
+            <h1 className="text-4xl font-bold">Artwork Detail</h1>
+            <p className="mt-2 text-neutral-600">Original artwork and linked products</p></div>
+          <div className="flex gap-3"><Link className="rounded-lg border border-neutral-300 bg-white px-4 py-3 font-semibold" href="/library">Artwork Library</Link>
+            <Link className="rounded-lg border border-neutral-300 bg-white px-4 py-3 font-semibold" href="/products">Product Library</Link></div>
+        </div>
+        {!brand && <p role="alert" className="text-red-700">Missing or invalid brand in URL.</p>}
+        {loading && <p>Loading artwork...</p>}
+        {error && <p role="alert" className="mb-5 text-red-700">{error}</p>}
+        {!loading && artwork && brand && id && (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <section className="rounded-xl border border-neutral-200 bg-white p-6">
+              <div className="relative aspect-square overflow-hidden rounded-lg bg-neutral-100">
+                <Image src={`/api/artworks/${id}/image?brand=${brand}`} alt={artwork.filename} fill unoptimized sizes="(max-width: 1024px) 100vw, 50vw" className="object-contain p-5" />
+              </div>
+              <h2 className="mt-5 break-all text-lg font-bold">{artwork.filename}</h2>
+              <p className="mt-2 text-sm text-neutral-500">{brands.find((item) => item.id === brand)?.name} Â· {new Date(artwork.createdAt).toLocaleDateString('en-GB')}</p>
+              <a href={`/api/artworks/${id}/image?brand=${brand}`} download={artwork.filename} className="mt-5 inline-block rounded-lg border border-neutral-300 px-4 py-2 font-semibold hover:bg-neutral-50">Open original PNG</a>
+              <div className="mt-8 border-t pt-5"><button type="button" onClick={() => void deleteArtwork()} disabled={busy || artwork.linkedProducts.length > 0} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:opacity-40">Delete artwork</button>
+                {artwork.linkedProducts.length > 0 && <p className="mt-2 text-xs text-neutral-500">Delete linked products first.</p>}</div>
+            </section>
+            <div className="space-y-6">
+              <section className="rounded-xl border border-neutral-200 bg-white p-6">
+                <h2 className="text-xl font-bold">Create product</h2>
+                <p className="mt-2 text-sm text-neutral-600">Each product has its own details, variants and publishing status.</p>
+                <label className="mt-5 block text-sm font-semibold">Product type
+                  <select value={productType} onChange={(event) => setProductType(event.target.value)} className="mt-2 block w-full rounded-lg border border-neutral-300 bg-white p-3">
+                    {productCatalog.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+                  </select>
+                </label>
+                <button type="button" disabled={busy || !productType} onClick={() => void createProduct()} className="mt-5 rounded-lg bg-neutral-900 px-5 py-3 font-semibold text-white disabled:opacity-50">{busy ? 'Please wait...' : '+ Create product'}</button>
+              </section>
+              <section className="rounded-xl border border-neutral-200 bg-white p-6">
+                <h2 className="text-xl font-bold">Linked products ({artwork.linkedProducts.length})</h2>
+                {artwork.linkedProducts.length === 0 ? <p className="mt-4 text-neutral-500">No products yet. Create one above.</p> :
+                  <div className="mt-5 space-y-3">{artwork.linkedProducts.map((product) => (
+                    <Link key={product.id} href={`/products/${product.id}`} className="block rounded-lg border border-neutral-200 p-4 hover:bg-neutral-50">
+                      <div className="flex items-center justify-between gap-3"><strong>{product.title || 'Untitled draft'}</strong><span className="text-xs text-neutral-500">{product.isPublished ? 'Published' : product.status}</span></div>
+                      <p className="mt-1 text-sm text-neutral-500">{product.productType} Â· {product.slug}</p>
+                    </Link>
+                  ))}</div>}
+              </section>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  )
+}
+
+========== app/library/[id]/page.tsx ==========
+
+import { redirect } from 'next/navigation'
+import { getStudioUser } from '@/lib/auth'
+import ArtworkDetail from './ArtworkDetail'
+
+export default async function ArtworkDetailPage({params}: {params: Promise<{ id: string }>}) {
+  const user = await getStudioUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  return <ArtworkDetail params={params} />
+}
+
+========== app/library/page.tsx ==========
+
+import { redirect } from 'next/navigation'
+import { getStudioUser } from '@/lib/auth'
+import ArtworkLibrary from './ArtworkLibrary'
+
+export default async function LibraryPage() {
+  const user = await getStudioUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  return <ArtworkLibrary />
+}
+
+========== app/login/page.tsx ==========
+
+'use client'
+
+import { useState, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+
+export default function LoginPage() {
+  const router = useRouter()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      router.replace('/')
+      router.refresh()
+    } catch {
+      setError('Unable to sign in. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f5f2ec] px-6 py-12">
+      <div className="w-full max-w-md">
+        <header className="mb-10 text-center">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] text-[#77716a]">
+            NVT Company
+          </p>
+
+          <h1 className="text-4xl font-bold tracking-tight text-[#171717]">
+            Design Studio
+          </h1>
+
+          <p className="mt-3 text-sm text-[#77716a]">
+            Your creative workspace.
+          </p>
+        </header>
+
+        <form
+          onSubmit={handleLogin}
+          className="space-y-6 rounded-2xl border border-[#e7e3dc] bg-white p-8 md:p-10"
+        >
+          <div>
+            <h2 className="text-2xl font-bold text-[#171717]">
+              Welcome back
+            </h2>
+
+            <p className="mt-2 text-sm text-[#77716a]">
+              Sign in to continue creating.
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-medium text-[#171717]"
+            >
+              Email address
+            </label>
+
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+              className="w-full rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-[#171717] outline-none transition focus:border-[#171717] focus:ring-1 focus:ring-[#171717]"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-[#171717]"
+            >
+              Password
+            </label>
+
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              className="w-full rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-[#171717] outline-none transition focus:border-[#171717] focus:ring-1 focus:ring-[#171717]"
+            />
+          </div>
+
+          <div className="text-right">
+            <a
+              href="/forgot-password"
+              className="text-sm font-medium text-[#555] underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </a>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-600">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-[#171717] px-4 py-3 font-semibold text-white transition hover:bg-[#333] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+
+        <p className="mt-8 text-center text-xs text-[#77716a]">
+          Private workspace Â· NVT Company
+        </p>
+      </div>
+    </main>
+  )
+}
+
+========== app/page.tsx ==========
+
+import { redirect } from 'next/navigation'
+import { getStudioUser } from '@/lib/auth'
+import StudioHome from './StudioHome'
+
+export default async function HomePage() {
+  const user = await getStudioUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  return <StudioHome />
+}
+
+========== app/products/ProductLibrary.tsx ==========
+
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { brands, type BrandId } from '@/lib/brands'
+
+type ProductItem = {
+  id: string
+  artworkId: string
+  brand: BrandId
+  title: string
+  slug: string
+  productType: string
+  status: string
+  colors: unknown
+  createdAt: string
+  isPublished: boolean
+}
+
+function ProductThumbnail({ product }: { product: ProductItem }) {
+  const [failed, setFailed] = useState(false)
+  const color = Array.isArray(product.colors) && typeof product.colors[0] === 'string' ? product.colors[0] : 'black'
+  const mockup = `/api/mockups/${product.artworkId}?brand=${encodeURIComponent(product.brand)}&productType=${encodeURIComponent(product.productType)}&color=${encodeURIComponent(color)}`
+  const original = `/api/artworks/${product.artworkId}/image?brand=${encodeURIComponent(product.brand)}`
+
+  return (
+    <div className="relative aspect-square bg-neutral-100">
+      <Image src={failed ? original : mockup} onError={() => setFailed(true)} alt={product.title || 'Draft product'} fill unoptimized sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" className="object-contain p-5" />
+    </div>
+  )
+}
+
+export default function ProductLibrary() {
+  const [products, setProducts] = useState<ProductItem[]>([])
+  const [brand, setBrand] = useState('all')
+  const [status, setStatus] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    async function load() {
+      try {
+        const response = await fetch('/api/products', { cache: 'no-store', signal: controller.signal })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Unable to load products.')
+        setProducts(data.products)
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Unable to load products.')
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+    void load()
+    return () => controller.abort()
+  }, [])
+
+  const filtered = useMemo(() => products.filter((item) =>
+    (brand === 'all' || item.brand === brand) &&
+    (status === 'all' || (status === 'published' ? item.isPublished : status === 'unpublished' ? !item.isPublished : item.status === status))
+  ), [products, brand, status])
+
+  return (
+    <main className="min-h-screen bg-[#F5F2EB] px-6 py-12 text-[#171717]">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-neutral-500">NVT Design Studio</p>
+            <h1 className="text-4xl font-bold">Product Library</h1>
+            <p className="mt-3 text-neutral-600">One card per product, with its own publication status.</p>
+          </div>
+          <Link href="/library" className="rounded-lg border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold hover:bg-neutral-100">Artwork Library</Link>
+        </header>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <p className="mr-auto text-sm text-neutral-600">{filtered.length} products</p>
+          <select aria-label="Filter by brand" value={brand} onChange={(event) => setBrand(event.target.value)} className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm">
+            <option value="all">All brands</option>
+            {brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+          <select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm">
+            <option value="all">All statuses</option>
+            <option value="draft">Draft</option>
+            <option value="ready">Ready</option>
+            <option value="published">Published</option>
+            <option value="unpublished">Not published</option>
+          </select>
+        </div>
+        {loading && <p>Loading products...</p>}
+        {error && <p role="alert" className="text-red-700">{error}</p>}
+        {!loading && !error && filtered.length === 0 && <p className="rounded-xl bg-white p-10 text-center text-neutral-600">No products found.</p>}
+        {!loading && !error && (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtered.map((product) => (
+              <Link key={product.id} href={`/products/${product.id}`} className="overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+                <ProductThumbnail product={product} />
+                <div className="p-4">
+                  <p className="truncate font-semibold">{product.title || 'Untitled draft'}</p>
+                  <p className="mt-1 text-sm text-neutral-500">{brands.find((entry) => entry.id === product.brand)?.name ?? product.brand}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-neutral-100 px-3 py-1 capitalize">{product.status}</span>
+                    <span className="rounded-full bg-neutral-100 px-3 py-1">{product.isPublished ? 'Published' : 'Not published'}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  )
+}
+
+========== app/products/[id]/ProductEditor.tsx ==========
+
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { productCatalog } from '@/lib/catalog/products'
+import { productOptions } from '@/lib/productOptions'
+import { isBrandId, type BrandId } from '@/lib/brands'
+import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
+
+type RecordData = {
+  id: string
+  artworkId: string
+  brand: string
+  isPublished: boolean
+} & ProductMetadata
+
+const field = 'w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-800 transition hover:border-neutral-400 focus:border-neutral-500 focus:outline-none disabled:opacity-50'
+const selectField = `${field} appearance-none cursor-pointer pr-12`
+
+const slugify = (value: string) =>
+  value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+function SelectField({
+  value,
+  onChange,
+  children,
+  disabled
+}: {
+  value: string
+  onChange: (value: string) => void
+  children: React.ReactNode
+  disabled?: boolean
+}) {
+  return (
+    <div className="relative">
+      <select
+        className={selectField}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      >
+        {children}
+      </select>
+
+      <ChevronDown
+        size={18}
+        strokeWidth={1.75}
+        aria-hidden="true"
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500"
+      />
+    </div>
+  )
+}
+
+export default function ProductEditor({ id }: { id: string }) {
+  const router = useRouter()
+  const [record, setRecord] = useState<RecordData | null>(null)
+  const [details, setDetails] = useState<ProductMetadata>(defaultProductMetadata)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [previewColor, setPreviewColor] = useState('black')
+  const [mockupVersion, setMockupVersion] = useState(0)
+  const [mockupExists, setMockupExists] = useState(false)
+  const [checkingMockup, setCheckingMockup] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [slugEdited, setSlugEdited] = useState(false)
+  const [priceInput, setPriceInput] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    fetch(`/api/products/${id}`, { cache: 'no-store' })
+      .then(async (r) => {
+        const data = await r.json()
+
+        if (!r.ok) {
+          throw new Error(data.error || 'Unable to load product')
+        }
+
+        if (!active) return
+
+        const p = data.product
+
+        setRecord(p)
+
+        setDetails({
+          ...defaultProductMetadata,
+          title: p.title,
+          slug: p.slug,
+          subtitle: p.subtitle ?? '',
+          description: p.description ?? '',
+          price: p.price ?? 0,
+          sizes: Array.isArray(p.sizes) ? p.sizes : [],
+          colors: Array.isArray(p.colors) ? p.colors : [],
+          category: p.category,
+          collections: Array.isArray(p.collections) ? p.collections : [],
+          label: p.label,
+          status: p.status === 'ready' ? 'ready' : 'draft',
+          productType: p.productType,
+        })
+
+        setSlugEdited(
+          Boolean(
+            p.slug &&
+              !/^draft(?:-|$)/i.test(p.slug) &&
+              p.slug !== slugify(p.title || '')
+          )
+        )
+
+        setPriceInput(
+          p.price == null || Number(p.price) === 0
+            ? ''
+            : String(p.price)
+        )
+
+        setPreviewColor(
+          Array.isArray(p.colors) && p.colors.length
+            ? p.colors[0]
+            : 'black'
+        )
+
+        setDirty(false)
+      })
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false))
+
+    return () => {
+      active = false
+    }
+  }, [id])
+
+  const type = useMemo(
+    () => productCatalog.find((p) => p.id === details.productType),
+    [details.productType]
+  )
+
+  const brand: BrandId | null =
+    record && isBrandId(record.brand) ? record.brand : null
+
+  const options = brand ? productOptions[brand] : null
+
+  const update = <K extends keyof ProductMetadata>(
+    key: K,
+    value: ProductMetadata[K]
+  ) => {
+    setDetails((p) => ({ ...p, [key]: value }))
+    setDirty(true)
+    setMessage('')
+  }
+
+  const updateTitle = (title: string) => {
+    setDetails((previous) => ({
+      ...previous,
+      title,
+      slug: slugEdited ? previous.slug : slugify(title),
+    }))
+
+    setDirty(true)
+    setMessage('')
+  }
+
+  const updatePrice = (value: string) => {
+    setPriceInput(value)
+
+    const normalized = value.replace(',', '.')
+
+    if (
+      normalized.trim() !== '' &&
+      /^\d*(?:\.\d{0,2})?$/.test(normalized) &&
+      Number.isFinite(Number(normalized))
+    ) {
+      update('price', Number(normalized))
+    }
+  }
+
+  const previewUrl =
+    record && brand
+      ? `/api/mockups/${record.artworkId}?brand=${brand}&productType=${encodeURIComponent(details.productType)}&color=${encodeURIComponent(previewColor)}&v=${mockupVersion}`
+      : ''
+
+  useEffect(() => {
+    if (
+      !record ||
+      !brand ||
+      !type?.colors.some((c) => c.id === previewColor)
+    ) {
+      setMockupExists(false)
+      return
+    }
+
+    let active = true
+
+    setCheckingMockup(true)
+
+    fetch(previewUrl, {
+      method: 'HEAD',
+      cache: 'no-store',
+    })
+      .then((r) => {
+        if (active) setMockupExists(r.ok)
+      })
+      .catch(() => {
+        if (active) setMockupExists(false)
+      })
+      .finally(() => {
+        if (active) setCheckingMockup(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [previewUrl, record, brand, type, previewColor])
+
+  async function action(fn: () => Promise<void>) {
+    setBusy(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await fn()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'Something went wrong'
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function json(
+    url: string,
+    method: string,
+    body?: unknown
+  ) {
+    const response = await fetch(url, {
+      method,
+      headers:
+        body === undefined
+          ? undefined
+          : { 'Content-Type': 'application/json' },
+      body:
+        body === undefined
+          ? undefined
+          : JSON.stringify(body),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Request failed (${response.status})`
+      )
+    }
+
+    return data
+  }
+
+  async function save() {
+    if (
+      !priceInput.trim() ||
+      !/^\d+(?:[.,]\d{0,2})?$/.test(priceInput) ||
+      !details.slug.trim()
+    ) {
+      setError('Enter a valid price and slug before saving.')
+      return
+    }
+
+    await action(async () => {
+      const data = await json(
+        `/api/products/${id}`,
+        'PATCH',
+        details
+      )
+
+      setRecord((r) =>
+        r ? { ...r, ...data.product } : r
+      )
+
+      setDirty(false)
+      setMessage('Product saved')
+    })
+  }
+
+  async function generate() {
+    if (!record || !brand) return
+
+    await action(async () => {
+      await json('/api/mockups', 'POST', {
+        brand,
+        id: record.artworkId,
+        productType: details.productType,
+        color: previewColor,
+      })
+
+      setMockupVersion((n) => n + 1)
+      setMessage('Mockup generated')
+    })
+  }
+
+  async function publish() {
+    if (dirty) {
+      setError('Save your changes before publishing')
+      return
+    }
+
+    await action(async () => {
+      await json(`/api/products/${id}/publish`, 'POST')
+
+      setRecord((r) =>
+        r ? { ...r, isPublished: true } : r
+      )
+
+      setMessage('Product published')
+    })
+  }
+
+  async function unpublish() {
+    await action(async () => {
+      await json(`/api/products/${id}/publish`, 'DELETE')
+
+      setRecord((r) =>
+        r ? { ...r, isPublished: false } : r
+      )
+
+      setMessage('Product unpublished')
+    })
+  }
+
+  async function remove() {
+    if (
+      !window.confirm(
+        'Permanently delete this product? The artwork will remain.'
+      )
+    ) {
+      return
+    }
+
+    await action(async () => {
+      await json(`/api/products/${id}`, 'DELETE')
+
+      router.push('/products')
+      router.refresh()
+    })
+  }
+
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-6xl p-8">
+        Loading product...
+      </main>
+    )
+  }
+
+  if (!record || !brand || !options) {
+    return (
+      <main className="mx-auto max-w-6xl p-8">
+        <Link href="/products">â† Products</Link>
+
+        <p className="mt-5 text-red-700">
+          {error || 'Product not found'}
+        </p>
+      </main>
+    )
+  }
+
+  return (
+    <main className="min-h-screen bg-[#F5F2EB] px-5 py-10 text-[#171717]">
+      <div className="mx-auto max-w-7xl space-y-7">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <Link
+              href="/products"
+              className="text-sm font-medium text-neutral-500 hover:text-neutral-900"
+            >
+              â† Product Library
+            </Link>
+
+            <h1 className="mt-2 text-3xl font-bold">
+              {details.title || 'Untitled product'}
+            </h1>
+
+            <p className="text-sm text-neutral-500">
+              {brand} Â· {record.isPublished ? 'Published' : details.status}
+            </p>
+          </div>
+
+          <Link
+            href={`/library/${record.artworkId}?brand=${brand}`}
+            className="rounded-lg border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold transition hover:bg-neutral-50"
+          >
+            View artwork
+          </Link>
+        </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-lg bg-red-50 p-3 text-red-700"
+          >
+            {error}
+          </p>
+        )}
+
+        {message && (
+          <p
+            role="status"
+            className="rounded-lg bg-green-50 p-3 text-green-800"
+          >
+            {message}
+          </p>
+        )}
+
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-8">
+            <h2 className="text-xl font-semibold">
+              Product details
+            </h2>
+
+            <label className="block space-y-1 text-sm">
+              Title
+              <input
+                className={field}
+                maxLength={150}
+                value={details.title}
+                onChange={(e) => updateTitle(e.target.value)}
+              />
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              Slug
+              <input
+                className={field}
+                maxLength={180}
+                value={details.slug}
+                onChange={(e) => {
+                  setSlugEdited(true)
+                  update('slug', slugify(e.target.value))
+                }}
+              />
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              Subtitle
+              <input
+                className={field}
+                value={details.subtitle}
+                onChange={(e) => update('subtitle', e.target.value)}
+              />
+            </label>
+
+            <label className="block space-y-1 text-sm">
+              Description
+              <textarea
+                className={field}
+                rows={5}
+                maxLength={5000}
+                value={details.description}
+                onChange={(e) =>
+                  update('description', e.target.value)
+                }
+              />
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block space-y-1 text-sm">
+                Price (â‚¬)
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g. 24.95"
+                  className={field}
+                  value={priceInput}
+                  onChange={(e) => updatePrice(e.target.value)}
+                  onBlur={() => {
+                    if (
+                      priceInput.trim() &&
+                      /^\d+(?:[.,]\d{0,2})?$/.test(priceInput)
+                    ) {
+                      setPriceInput(
+                        String(
+                          Number(priceInput.replace(',', '.'))
+                        )
+                      )
+                    }
+                  }}
+                />
+              </label>
+
+              <label className="block space-y-1 text-sm">
+                Status
+                <SelectField
+                  value={details.status}
+                  onChange={(value) =>
+                    update(
+                      'status',
+                      value as ProductMetadata['status']
+                    )
+                  }
+                >
+                  <option value="draft">Draft</option>
+                  <option value="ready">Ready</option>
+                </SelectField>
+              </label>
+            </div>
+
+            <label className="block space-y-1 text-sm">
+              Product type
+              <SelectField
+                value={details.productType}
+                onChange={(value) => {
+                  const next = productCatalog.find(
+                    (p) => p.id === value
+                  )
+
+                  setDetails((p) => ({
+                    ...p,
+                    productType: value,
+                    sizes: [],
+                    colors: next?.colors[0]
+                      ? [next.colors[0].id]
+                      : [],
+                  }))
+
+                  setPreviewColor(
+                    next?.colors[0]?.id ?? 'black'
+                  )
+
+                  setDirty(true)
+                }}
+              >
+                {productCatalog.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+
+            <div>
+              <p className="mb-2 text-sm font-medium">
+                Sizes
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                {type?.sizes.map((s) => (
+                  <label key={s} className="text-sm">
+                    <input
+                      type="checkbox"
+                      className="mr-1"
+                      checked={details.sizes.includes(s)}
+                      onChange={(e) =>
+                        update(
+                          'sizes',
+                          e.target.checked
+                            ? [...details.sizes, s]
+                            : details.sizes.filter(
+                                (v) => v !== s
+                              )
+                        )
+                      }
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-medium">
+                Colors
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                {type?.colors.map((c) => (
+                  <label key={c.id} className="text-sm">
+                    <input
+                      type="checkbox"
+                      className="mr-1"
+                      checked={details.colors.includes(c.id)}
+                      onChange={(e) => {
+                        update(
+                          'colors',
+                          e.target.checked
+                            ? [...details.colors, c.id]
+                            : details.colors.filter(
+                                (v) => v !== c.id
+                              )
+                        )
+
+                        setPreviewColor(c.id)
+                      }}
+                    />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <label className="block space-y-1 text-sm">
+              Category
+              <SelectField
+                value={details.category}
+                onChange={(value) =>
+                  update('category', value)
+                }
+              >
+                <option value="">None</option>
+
+                {options.categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+
+            <div>
+              <p className="mb-2 text-sm font-medium">
+                Collections
+              </p>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {options.collections.map((c) => (
+                  <label key={c.id} className="text-sm">
+                    <input
+                      type="checkbox"
+                      className="mr-2"
+                      checked={details.collections.includes(c.id)}
+                      onChange={(e) =>
+                        update(
+                          'collections',
+                          e.target.checked
+                            ? [...details.collections, c.id]
+                            : details.collections.filter(
+                                (v) => v !== c.id
+                              )
+                        )
+                      }
+                    />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <label className="block space-y-1 text-sm">
+              Label
+              <SelectField
+                value={details.label}
+                onChange={(value) =>
+                  update('label', value)
+                }
+              >
+                <option value="">None</option>
+
+                {options.labels.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+
+            <div className="flex flex-wrap gap-3 border-t pt-5">
+              <button
+                disabled={busy}
+                onClick={save}
+                className="rounded-lg bg-neutral-900 px-5 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                {busy ? 'Working...' : 'Save details'}
+              </button>
+
+              {record.isPublished ? (
+                <button
+                  disabled={busy}
+                  onClick={unpublish}
+                  className="rounded-lg border px-5 py-3 disabled:opacity-50"
+                >
+                  Unpublish
+                </button>
+              ) : (
+                <button
+                  disabled={busy || dirty}
+                  onClick={publish}
+                  className="rounded-lg border px-5 py-3 disabled:opacity-50"
+                >
+                  Publish
+                </button>
+              )}
+            </div>
+          </section>
+
+          <aside className="space-y-5">
+            <section className="rounded-2xl border border-neutral-200 bg-white p-6">
+              <h2 className="mb-4 text-lg font-semibold">
+                Mockup
+              </h2>
+
+              <SelectField
+                value={previewColor}
+                onChange={setPreviewColor}
+              >
+                {type?.colors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </SelectField>
+
+              <div className="mt-4 flex aspect-[5/6] items-center justify-center overflow-hidden rounded-xl bg-neutral-100">
+                {mockupExists ? (
+                  <img
+                    src={previewUrl}
+                    alt="Product mockup"
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-sm text-neutral-500">
+                    {checkingMockup
+                      ? 'Checking...'
+                      : 'No mockup yet'}
+                  </span>
+                )}
+              </div>
+
+              <button
+                disabled={
+                  busy ||
+                  !type?.colors.some(
+                    (c) => c.id === previewColor
+                  )
+                }
+                onClick={generate}
+                className="mt-4 w-full rounded-lg bg-neutral-900 px-4 py-3 text-white disabled:opacity-50"
+              >
+                Generate mockup
+              </button>
+
+              <p className="mt-2 text-xs text-neutral-500">
+                Mockups are shared by artwork, product type and color.
+              </p>
+            </section>
+
+            <button
+              disabled={busy}
+              onClick={remove}
+              className="w-full rounded-lg border border-red-200 p-3 text-red-700 disabled:opacity-50"
+            >
+              Delete product
+            </button>
+          </aside>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+========== app/products/[id]/page.tsx ==========
+
+import { redirect } from 'next/navigation'
+import { getStudioUser } from '@/lib/auth'
+import ProductEditor from './ProductEditor'
+export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+  if (!(await getStudioUser())) redirect('/login')
+  const { id } = await params
+  return <ProductEditor id={id} />
+}
+
+========== app/products/page.tsx ==========
+
+import { redirect } from 'next/navigation'
+import { getStudioUser } from '@/lib/auth'
+import ProductLibrary from './ProductLibrary'
+
+export default async function ProductsPage() {
+  if (!(await getStudioUser())) redirect('/login')
+  return <ProductLibrary />
+}
+
+========== app/shared-images/SharedImageLibrary.tsx ==========
+
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { Pencil, RefreshCw, Trash2 } from 'lucide-react'
+
+interface SharedImage {
+  id: string
+  name: string
+  storagePath: string
+  productType: string | null
+  color: string | null
+  createdAt: string
+}
+
+interface EditForm {
+  name: string
+  productType: string
+  color: string
+}
+
+const MAX_FILE_SIZE = 15 * 1024 * 1024
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+
+export default function SharedImageLibrary() {
+  const [images, setImages] = useState<SharedImage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [replacing, setReplacing] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  const [file, setFile] = useState<File | null>(null)
+  const [name, setName] = useState('')
+  const [productType, setProductType] = useState('')
+  const [color, setColor] = useState('')
+  const [filter, setFilter] = useState('all')
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<EditForm>({
+    name: '',
+    productType: '',
+    color: ''
+  })
+
+  const [replacingId, setReplacingId] = useState<string | null>(null)
+  const [replacementFile, setReplacementFile] = useState<File | null>(null)
+  const [replacementPreview, setReplacementPreview] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadImages() {
+      try {
+        const response = await fetch('/api/shared-images', {
+          cache: 'no-store'
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Unable to load images.')
+        }
+
+        setImages(result.images)
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load images.'
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadImages()
+  }, [])
+
+  useEffect(() => {
+    if (!replacementFile) {
+      setReplacementPreview(null)
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(replacementFile)
+    setReplacementPreview(previewUrl)
+
+    return () => {
+      URL.revokeObjectURL(previewUrl)
+    }
+  }, [replacementFile])
+
+  const productTypes = useMemo(() => {
+    return [...new Set(
+      images
+        .map((image) => image.productType)
+        .filter((value): value is string => Boolean(value))
+    )].sort()
+  }, [images])
+
+  const filteredImages = useMemo(() => {
+    return images.filter(
+      (image) =>
+        filter === 'all' ||
+        image.productType === filter
+    )
+  }, [images, filter])
+
+  function startEditing(image: SharedImage) {
+    if (replacing || saving) return
+
+    cancelReplacing()
+    setEditingId(image.id)
+    setEditForm({
+      name: image.name,
+      productType: image.productType ?? '',
+      color: image.color ?? ''
+    })
+    setError('')
+    setMessage('')
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditForm({
+      name: '',
+      productType: '',
+      color: ''
+    })
+  }
+
+  async function handleSave(id: string) {
+    if (!editForm.name.trim() || saving) return
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(`/api/shared-images/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          productType: editForm.productType.trim() || null,
+          color: editForm.color.trim() || null
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to update image.')
+      }
+
+      setImages((current) =>
+        current.map((image) =>
+          image.id === id ? result.image : image
+        )
+      )
+
+      cancelEditing()
+      setMessage('Image updated successfully!')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to update image.'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function startReplacing(image: SharedImage) {
+    if (saving || replacing) return
+
+    cancelEditing()
+    setReplacingId(image.id)
+    setReplacementFile(null)
+    setError('')
+    setMessage('')
+  }
+
+  function cancelReplacing() {
+    setReplacingId(null)
+    setReplacementFile(null)
+  }
+
+  function handleReplacementFile(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0] ?? null
+
+    if (!selectedFile) {
+      setReplacementFile(null)
+      return
+    }
+
+    if (!ALLOWED_TYPES.includes(selectedFile.type)) {
+      setError('Only PNG, JPEG and WebP images are allowed.')
+      setReplacementFile(null)
+      event.target.value = ''
+      return
+    }
+
+    if (selectedFile.size === 0 || selectedFile.size > MAX_FILE_SIZE) {
+      setError('Image must be smaller than 15 MB.')
+      setReplacementFile(null)
+      event.target.value = ''
+      return
+    }
+
+    setError('')
+    setMessage('')
+    setReplacementFile(selectedFile)
+  }
+
+  async function handleReplace(id: string) {
+    if (!replacementFile || replacing) return
+
+    setReplacing(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const formData = new FormData()
+      formData.append('image', replacementFile)
+
+      const response = await fetch(`/api/shared-images/${id}`, {
+        method: 'PUT',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to replace image.')
+      }
+
+      setImages((current) =>
+        current.map((image) =>
+          image.id === id ? result.image : image
+        )
+      )
+
+      cancelReplacing()
+      setMessage('Image replaced successfully!')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to replace image.'
+      )
+    } finally {
+      setReplacing(false)
+    }
+  }
+
+  async function handleDelete(image: SharedImage) {
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${image.name}"?\n\nThis action cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    setDeletingId(image.id)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(`/api/shared-images/${image.id}`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to delete image.')
+      }
+
+      setImages((current) =>
+        current.filter((item) => item.id !== image.id)
+      )
+
+      setMessage(
+        result.warning || 'Image deleted successfully!'
+      )
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete image.'
+      )
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  async function handleUpload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!file || !name.trim()) return
+
+    setUploading(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('name', name.trim())
+      formData.append('productType', productType.trim())
+      formData.append('color', color.trim())
+
+      const response = await fetch('/api/shared-images', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Unable to upload image.')
+      }
+
+      setImages((current) => [result.image, ...current])
+
+      setFile(null)
+      setName('')
+      setProductType('')
+      setColor('')
+      setMessage('Image uploaded successfully!')
+
+      const fileInput = document.getElementById(
+        'shared-image-file'
+      ) as HTMLInputElement | null
+
+      if (fileInput) fileInput.value = ''
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to upload image.'
+      )
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#F5F2EB] px-6 py-12 text-[#171717]">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-10 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-neutral-500">
+              NVT Design Studio
+            </p>
+
+            <h1 className="text-4xl font-bold">
+              Shared Image Library
+            </h1>
+
+            <p className="mt-3 text-neutral-600">
+              Manage reusable product photos for your storefronts.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/library"
+              className="rounded-lg border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold transition hover:bg-neutral-100"
+            >
+              Artwork Library
+            </Link>
+          </div>
+        </header>
+
+        {/* Overview */}
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-neutral-200 bg-white p-5">
+            <p className="text-sm text-neutral-500">
+              Total images
+            </p>
+            <p className="mt-2 text-3xl font-bold">
+              {images.length}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-neutral-200 bg-white p-5">
+            <p className="text-sm text-neutral-500">
+              Product types
+            </p>
+            <p className="mt-2 text-3xl font-bold">
+              {productTypes.length}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-neutral-200 bg-white p-5">
+            <p className="text-sm text-neutral-500">
+              Showing
+            </p>
+            <p className="mt-2 text-3xl font-bold">
+              {filteredImages.length}
+            </p>
+          </div>
+        </div>
+
+        {/* Upload */}
+        <section className="mb-10 rounded-xl border border-neutral-200 bg-white p-6">
+          <h2 className="text-xl font-bold">
+            Upload shared image
+          </h2>
+
+          <p className="mt-2 text-sm text-neutral-500">
+            Upload PNG, JPEG or WebP. Images are automatically optimized to WebP.
+          </p>
+
+          <form
+            onSubmit={handleUpload}
+            className="mt-6 grid gap-4 md:grid-cols-2"
+          >
+            <label className="block text-sm font-medium">
+              Image
+              <input
+                id="shared-image-file"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                required
+                onChange={(event) => {
+                  const selectedFile = event.target.files?.[0] ?? null
+                  setFile(selectedFile)
+
+                  if (selectedFile && !name) {
+                    setName(selectedFile.name.replace(/\.[^.]+$/, ''))
+                  }
+                }}
+                className="mt-2 block w-full rounded-lg border border-neutral-300 p-3 text-sm"
+              />
+            </label>
+
+            <label className="block text-sm font-medium">
+              Image name
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={150}
+                required
+                placeholder="Black T-shirt back"
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm"
+              />
+            </label>
+
+            <label className="block text-sm font-medium">
+              Product type (optional)
+              <input
+                type="text"
+                value={productType}
+                onChange={(event) => setProductType(event.target.value)}
+                maxLength={100}
+                placeholder="t-shirt"
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm"
+              />
+            </label>
+
+            <label className="block text-sm font-medium">
+              Color (optional)
+              <input
+                type="text"
+                value={color}
+                onChange={(event) => setColor(event.target.value)}
+                maxLength={100}
+                placeholder="black"
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 text-sm"
+              />
+            </label>
+
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                disabled={uploading || !file || !name.trim()}
+                className="rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {uploading ? 'Uploading...' : '+ Upload image'}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {message && (
+          <p role="status" className="mb-6 text-sm text-green-700">
+            {message}
+          </p>
+        )}
+
+        {error && (
+          <p role="alert" className="mb-6 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        {/* Filters */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-xl font-bold">
+            Your images
+          </h2>
+
+          <select
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            className="rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm"
+          >
+            <option value="all">All product types</option>
+
+            {productTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {loading && (
+          <p className="text-neutral-500">
+            Loading images...
+          </p>
+        )}
+
+        {!loading && filteredImages.length === 0 && (
+          <div className="rounded-xl border border-neutral-200 bg-white p-12 text-center">
+            <h3 className="text-lg font-semibold">
+              No images found
+            </h3>
+
+            <p className="mt-2 text-neutral-500">
+              Upload your first shared product image.
+            </p>
+          </div>
+        )}
+
+        {/* Image grid */}
+        {!loading && filteredImages.length > 0 && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredImages.map((image) => (
+              <div
+                key={image.id}
+                className="overflow-hidden rounded-xl border border-neutral-200 bg-white"
+              >
+                <div className="relative aspect-square bg-neutral-100">
+                  <Image
+                    src={`/api/shared-images/${image.id}/image?v=${encodeURIComponent(image.storagePath)}`}
+                    alt={image.name}
+                    fill
+                    unoptimized
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="object-contain p-4"
+                  />
+                </div>
+
+                <div className="p-5">
+                  {editingId === image.id ? (
+                    <div className="space-y-4">
+                      <label className="block text-sm font-medium">
+                        Image name
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(event) =>
+                            setEditForm((current) => ({
+                              ...current,
+                              name: event.target.value
+                            }))
+                          }
+                          maxLength={150}
+                          className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+
+                      <label className="block text-sm font-medium">
+                        Product type
+                        <input
+                          type="text"
+                          value={editForm.productType}
+                          onChange={(event) =>
+                            setEditForm((current) => ({
+                              ...current,
+                              productType: event.target.value
+                            }))
+                          }
+                          maxLength={100}
+                          placeholder="fabric"
+                          className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+
+                      <label className="block text-sm font-medium">
+                        Color
+                        <input
+                          type="text"
+                          value={editForm.color}
+                          onChange={(event) =>
+                            setEditForm((current) => ({
+                              ...current,
+                              color: event.target.value
+                            }))
+                          }
+                          maxLength={100}
+                          placeholder="black"
+                          className="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        />
+                      </label>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleSave(image.id)}
+                          disabled={saving || !editForm.name.trim()}
+                          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-50"
+                        >
+                          {saving ? 'Saving...' : 'Save changes'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={cancelEditing}
+                          disabled={saving}
+                          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-100 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : replacingId === image.id ? (
+                    <div className="space-y-4">
+                      <h3 className="font-semibold">
+                        Replace image
+                      </h3>
+
+                      <p className="text-sm text-neutral-500">
+                        Choose a new image for {image.name}.
+                        Existing product links will be preserved.
+                      </p>
+
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleReplacementFile}
+                        disabled={replacing}
+                        className="block w-full rounded-lg border border-neutral-300 p-2 text-sm"
+                      />
+
+                      {replacementPreview && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-neutral-500">
+                            New image preview
+                          </p>
+
+                          <div className="relative aspect-square overflow-hidden rounded-lg bg-neutral-100">
+                            <Image
+                              src={replacementPreview}
+                              alt="Replacement preview"
+                              fill
+                              unoptimized
+                              sizes="300px"
+                              className="object-contain p-3"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleReplace(image.id)}
+                          disabled={!replacementFile || replacing}
+                          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {replacing ? 'Replacing...' : 'Replace image'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={cancelReplacing}
+                          disabled={replacing}
+                          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-semibold transition hover:bg-neutral-100 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="min-w-0 flex-1 wrap-break-word font-semibold">
+                          {image.name}
+                        </h3>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => startEditing(image)}
+                            disabled={saving || replacing || deletingId !== null}
+                            title="Edit image"
+                            aria-label={`Edit ${image.name}`}
+                            className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+                          >
+                            <Pencil size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => startReplacing(image)}
+                            disabled={saving || replacing || deletingId !== null}
+                            title="Replace image"
+                            aria-label={`Replace ${image.name}`}
+                            className="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
+                          >
+                            <RefreshCw size={17} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(image)}
+                            disabled={saving || replacing || deletingId !== null}
+                            title="Delete image"
+                            aria-label={`Delete ${image.name}`}
+                            className="rounded-lg p-2 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {image.productType && (
+                          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">
+                            {image.productType}
+                          </span>
+                        )}
+
+                        {image.color && (
+                          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600">
+                            {image.color}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-4 text-xs text-neutral-400">
+                        {new Date(image.createdAt).toLocaleDateString('en-GB')}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  )
+}
+
+========== app/shared-images/page.tsx ==========
+
+import { redirect } from 'next/navigation'
+import { getStudioUser } from '@/lib/auth'
+import SharedImageLibrary from './SharedImageLibrary'
+
+export default async function SharedImagesPage() {
+  const user = await getStudioUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  return <SharedImageLibrary />
+}
+
+========== components/SignOutButton.tsx ==========
+
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { LogOut } from 'lucide-react'
+
+interface SignOutButtonProps {
+  variant?: 'default' | 'compact'
+}
+
+export default function SignOutButton({
+  variant = 'default'
+}: SignOutButtonProps) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  async function handleSignOut() {
+    setLoading(true)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('Sign out failed:', error)
+      setLoading(false)
+      return
+    }
+
+    router.replace('/login')
+    router.refresh()
+  }
+
+  const compact = variant === 'compact'
+
+  return (
+    <button
+      type="button"
+      onClick={handleSignOut}
+      disabled={loading}
+      className={
+        compact
+          ? 'inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50'
+          : 'inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50'
+      }
+    >
+      <LogOut size={compact ? 14 : 16} />
+      {loading ? 'Signing out...' : 'Sign out'}
+    </button>
+  )
+}
+
+========== components/StudioFooter.tsx ==========
+
+import SignOutButton from '@/components/SignOutButton'
+
+const tools = [
+  { name: 'Canva', href: 'https://www.canva.com/' },
+  { name: 'Groq', href: 'https://groq.com/' },
+  { name: 'ChatGPT', href: 'https://chatgpt.com/' }
+]
+
+export default function StudioFooter() {
+  return (
+    <footer className="mt-auto border-t border-neutral-200 bg-[#F5F2EB] px-6 py-5">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+        <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
+          NVT Design Studio
+        </p>
+
+        <div className="flex flex-wrap items-center gap-6">
+          <nav
+            aria-label="Creative tools"
+            className="flex flex-wrap items-center gap-5"
+          >
+            <p className="text-sm text-neutral-500">Quick click:</p>
+            {tools.map((tool) => (
+              <a
+                key={tool.name}
+                href={tool.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-neutral-500 transition hover:text-neutral-900"
+              >
+                {tool.name}
+              </a>
+            ))}
+          </nav>
+
+          <div className="border-l border-neutral-300 pl-5">
+            <SignOutButton variant="compact" />
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+========== eslint.config.mjs ==========
+
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import { FlatCompat } from "@eslint/eslintrc";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+    ],
+  },
+];
+
+export default eslintConfig;
+
+========== global.d.ts ==========
+
+declare module '*.css'
+
+========== lib/artworkDatabase.ts ==========
+
+import 'server-only'
+import { prisma } from '@/lib/prisma'
+import { isBrandId, type BrandId } from '@/lib/brands'
+import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
+import type { Artwork } from '@/lib/artworks'
+
+// Compatibility for older callers. Product fields are never stored on Artwork.
+export async function listArtworks(): Promise<Artwork[]> {
+  const records = await prisma.artwork.findMany({ orderBy: { createdAt: 'desc' } })
+  return records.filter((item) => isBrandId(item.brand)).map((item) => ({
+    id: item.id, brand: item.brand as BrandId, filename: item.filename,
+    createdAt: item.createdAt.toISOString(), hasMockup: false,
+    mockupColor: null, metadata: { ...defaultProductMetadata }
+  }))
+}
+
+export async function getArtworkById(brand: BrandId, id: string): Promise<Artwork | null> {
+  const item = await prisma.artwork.findFirst({ where: { id, brand } })
+  return item ? {
+    id: item.id, brand, filename: item.filename,
+    createdAt: item.createdAt.toISOString(), hasMockup: false,
+    mockupColor: null, metadata: { ...defaultProductMetadata }
+  } : null
+}
+
+export async function getArtworkLinkedProducts(brand: BrandId, artworkId: string) {
+  return prisma.product.findMany({
+    where: { brand, artworkId },
+    select: { id: true, title: true, slug: true, productType: true, status: true, createdAt: true },
+    orderBy: { createdAt: 'desc' }
+  })
+}
+
+// Legacy endpoint compatibility: edits must go through /api/products/[id].
+export async function updateArtworkMetadata(
+  _brand: BrandId, _id: string, _metadata: ProductMetadata, _productId?: string
+): Promise<boolean> {
+  throw new Error('Legacy artwork metadata editing is disabled. Edit the product instead.')
+}
+
+export async function isArtworkSlugTaken(brand: BrandId, slug: string, excludeId: string) {
+  const product = await prisma.product.findFirst({
+    where: { brand, slug, artworkId: { not: excludeId } }, select: { id: true }
+  })
+  return Boolean(product)
+}
+
+export async function deleteArtwork(brand: BrandId, id: string): Promise<boolean> {
+  if (await prisma.product.count({ where: { brand, artworkId: id } })) return false
+  const result = await prisma.artwork.deleteMany({ where: { brand, id } })
+  return result.count > 0
+}
+
+========== lib/artworkStorage.ts ==========
+
+import 'server-only'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import type { BrandId } from '@/lib/brands'
+
+const BUCKET = 'artworks'
+
+function getStoragePath( brand: BrandId, id: string, filename: string ) {
+  return `${brand}/${id}/${filename}`
+}
+
+export async function uploadArtworkImage( brand: BrandId, id: string, image: Buffer ) {
+  const storagePath = getStoragePath(
+    brand,
+    id,
+    'artwork.png'
+  )
+
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(storagePath, image, {
+      contentType: 'image/png',
+      upsert: false
+    })
+
+  if (error) throw error
+
+  return storagePath
+}
+
+export async function getArtworkImage( brand: BrandId, id: string ): Promise<Buffer> {
+  const storagePath = getStoragePath(
+    brand,
+    id,
+    'artwork.png'
+  )
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .download(storagePath)
+
+  if (error) throw error
+
+  return Buffer.from(await data.arrayBuffer())
+}
+
+export async function uploadArtworkMockup(
+  brand: BrandId,
+  id: string,
+  filename: string,
+  image: Buffer
+) {
+  const storagePath = getStoragePath(
+    brand,
+    id,
+    `mockups/${filename}`
+  )
+
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(storagePath, image, {
+      contentType: 'image/webp',
+      upsert: true
+    })
+
+  if (error) throw error
+
+  return storagePath
+}
+
+export async function getArtworkMockup( brand: BrandId, id: string, filename: string ): Promise<Buffer> {
+  const storagePath = getStoragePath(
+    brand,
+    id,
+    `mockups/${filename}`
+  )
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .download(storagePath)
+
+  if (error) throw error
+
+  return Buffer.from(await data.arrayBuffer())
+}
+
+export async function deleteArtworkFiles(brand: BrandId, id: string) {
+  const folder = `${brand}/${id}`
+
+  // Find all generated mockups
+  const { data: mockups, error: listError } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .list(`${folder}/mockups`, { limit: 1000 })
+
+  if (listError) throw listError
+
+  const paths = [
+    `${folder}/artwork.png`,
+    ...(mockups ?? []).map(
+      (file) => `${folder}/mockups/${file.name}`
+    )
+  ]
+
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .remove(paths)
+
+  if (error) throw error
+}
+
+========== lib/artworks.ts ==========
+
+import 'server-only'
+
+import path from 'node:path'
+import { readdir, readFile, stat } from 'node:fs/promises'
+import { brands, type BrandId } from '@/lib/brands'
+import { getProductMetadata } from '@/lib/productMetadata'
+import type { ProductMetadata } from '@/lib/productMetadataTypes'
+import { getProductType } from '@/lib/catalog/products'
+
+export interface Artwork {
+  id: string
+  brand: BrandId
+  filename: string
+  createdAt: string
+  hasMockup: boolean
+  metadata: ProductMetadata
+  mockupColor: string | null
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function isArtworkId(id: string) {
+  return UUID_REGEX.test(id)
+}
+
+export function getArtworkDirectory(
+  brand: BrandId,
+  id: string
+) {
+  if (!isArtworkId(id)) {
+    throw new Error('Invalid artwork ID')
+  }
+
+  return path.join(
+    process.cwd(),
+    'designs',
+    brand,
+    id
+  )
+}
+
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false
+    }
+
+    throw error
+  }
+}
+
+async function findArtworkMockup(directory: string, metadata: ProductMetadata): Promise<string | null> {
+  const product = getProductType(metadata.productType)
+
+  if (!product) return null
+
+  for (const color of metadata.colors) {
+    if (!product.colors.some((item) => item.id === color)) {
+      continue
+    }
+
+    const filename = `${product.id}-${color}-front.webp`
+
+    if (
+      await fileExists(
+        path.join(directory, 'mockups', filename)
+      )
+    ) {
+      return color
+    }
+  }
+
+  // Support older black shirt mockups.
+  if (
+    product.id === 'classic-tee' &&
+    metadata.colors.includes('black') &&
+    await fileExists(path.join(directory, 'shirt.webp'))
+  ) {
+    return 'black'
+  }
+
+  return null
+}
+
+export async function getArtworks(): Promise<Artwork[]> {
+  const artworks: Artwork[] = []
+
+  for (const brand of brands) {
+    const brandDir = path.join(
+      process.cwd(),
+      'designs',
+      brand.id
+    )
+
+    let entries
+
+    try {
+      entries = await readdir(brandDir, {
+        withFileTypes: true,
+      })
+    } catch (error) {
+      if (
+        (error as NodeJS.ErrnoException).code === 'ENOENT'
+      ) {
+        continue
+      }
+
+      throw error
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !isArtworkId(entry.name)) {
+        continue
+      }
+
+      const directory = getArtworkDirectory(
+        brand.id,
+        entry.name
+      )
+
+      try {
+        const artworkStat = await stat(
+          path.join(directory, 'artwork.png')
+        )
+
+        const metadata = await getProductMetadata(
+          brand.id,
+          entry.name
+        )
+
+        const mockupColor = await findArtworkMockup(
+          directory,
+          metadata
+        )
+
+        const hasMockup = mockupColor !== null
+
+        artworks.push({
+          id: entry.name,
+          brand: brand.id,
+          filename: 'artwork.png',
+          createdAt: artworkStat.birthtime.toISOString(),
+          hasMockup,
+          mockupColor,
+          metadata
+        })
+      } catch (error) {
+        if (
+          (error as NodeJS.ErrnoException).code !== 'ENOENT'
+        ) {
+          throw error
+        }
+      }
+    }
+  }
+
+  return artworks.sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime()
+  )
+}
+
+========== lib/auth.ts ==========
+
+import 'server-only'
+import { createClient } from '@/lib/supabase/server'
+
+export async function getStudioUser() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  if (error || !user?.email) {
+    return null
+  }
+
+  const allowedEmails = (process.env.STUDIO_ALLOWED_EMAILS ?? '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+
+  if (!allowedEmails.includes(user.email.toLowerCase())) {
+    return null
+  }
+
+  return user
+}
+
+========== lib/brands.ts ==========
+
+export const brands = [
+  { id: 't4c', name: "T's for Conspiracy" },
+  { id: 'legends', name: 'Goddamn Legends' },
+  { id: 'little-monsters', name: 'Little Monsters' },
+  { id: 'everyday-originals', name: 'Everyday Originals' }
+] as const
+
+export type BrandId = (typeof brands)[number]['id']
+
+export function isBrandId(value: string): value is BrandId {
+  return brands.some((brand) => brand.id === value)
+}
+
+========== lib/catalog/products.ts ==========
+
+import type { ProductType } from './types'
+
+export const productCatalog: ProductType[] = [
+  {
+    id: 'classic-tee',
+    name: 'Classic T-shirt',
+    printArea: {
+      left: 270,
+      top: 250,
+      width: 460,
+      height: 550,
+    },
+    sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'],
+    colors: [
+      {
+        id: 'black',
+        name: 'Black',
+        hex: '#202020',
+        mockupTemplate: 'shirts/black.webp',
+        sharedImages: {}
+      }
+    ]
+  }
+]
+
+export function getProductType(id: string) {
+  return productCatalog.find((product) => product.id === id)
+}
+
+========== lib/catalog/types.ts ==========
+
+export interface ProductColor {
+  id: string
+  name: string
+  hex: string
+  mockupTemplate: string
+  sharedImages: {
+    back?: string
+    fabric?: string
+    sizeChart?: string
+  }
+}
+
+export interface PrintArea {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+export interface ProductType {
+  id: string
+  name: string
+  sizes: string[]
+  colors: ProductColor[]
+  printArea: PrintArea
+}
+
+========== lib/mockup/generateMockup.ts ==========
+
+import 'server-only'
+import sharp from 'sharp'
+import path from 'node:path'
+import type { BrandId } from '@/lib/brands'
+import { getProductType } from '@/lib/catalog/products'
+import {
+  getArtworkImage,
+  uploadArtworkMockup
+} from '@/lib/artworkStorage'
+
+const OUTPUT = {
+  width: 1000,
+  height: 1200,
+  quality: 85
+}
+
+export async function generateMockup(
+  brand: BrandId,
+  id: string,
+  productTypeId = 'classic-tee',
+  colorId = 'black'
+) {
+  const productType = getProductType(productTypeId)
+
+  if (!productType) {
+    throw new Error(`Unknown product type: ${productTypeId}`)
+  }
+
+  const color = productType.colors.find(
+    (item) => item.id === colorId
+  )
+
+  if (!color) {
+    throw new Error(
+      `Color "${colorId}" is not available for ${productTypeId}`
+    )
+  }
+
+  const shirtPath = path.join(
+    process.cwd(),
+    'assets',
+    'mockups',
+    color.mockupTemplate
+  )
+
+  const filename = `${productTypeId}-${colorId}-front.webp`
+  const printArea = productType.printArea
+
+  // Download original artwork from Supabase Storage.
+  const originalArtwork = await getArtworkImage(brand, id)
+
+  // Prepare the garment template.
+  const shirt = await sharp(shirtPath)
+    .resize(OUTPUT.width, OUTPUT.height, {
+      fit: 'contain',
+      background: {
+        r: 0,
+        g: 0,
+        b: 0,
+        alpha: 0
+      }
+    })
+    .ensureAlpha()
+    .png()
+    .toBuffer()
+
+  // Fit artwork inside the print area.
+  const artwork = await sharp(originalArtwork)
+    .trim({
+      background: '#00000000',
+      threshold: 5
+    })
+    .resize(printArea.width, printArea.height, {
+      fit: 'contain',
+      background: {
+        r: 0,
+        g: 0,
+        b: 0,
+        alpha: 0
+      }
+    })
+    .png()
+    .toBuffer()
+
+  // Combine artwork and garment.
+  const mockupBuffer = await sharp(shirt)
+    .composite([
+      {
+        input: artwork,
+        left: printArea.left,
+        top: printArea.top
+      }
+    ])
+    .webp({ quality: OUTPUT.quality })
+    .toBuffer()
+
+  // Upload generated mockup to Supabase Storage.
+  const storagePath = await uploadArtworkMockup(
+    brand,
+    id,
+    filename,
+    mockupBuffer
+  )
+
+  return {
+    storagePath,
+    filename,
+    productType: productTypeId,
+    color: colorId
+  }
+}
+
+========== lib/prisma.ts ==========
+
+import 'server-only'
+import { PrismaClient } from '@/lib/generated/prisma/client'
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient
+}
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+}
+
+========== lib/productMetadata.ts ==========
+
+import 'server-only'
+import path from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
+import type { BrandId } from '@/lib/brands'
+import { getArtworkDirectory } from '@/lib/artworks'
+import { productOptions } from '@/lib/productOptions'
+import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
+import { getProductType } from '@/lib/catalog/products'
+import { prisma } from '@/lib/prisma'
+
+export async function getProductMetadata( brand: BrandId, id: string ): Promise<ProductMetadata> {
+  const filePath = path.join(
+    getArtworkDirectory(brand, id),
+    'metadata.json'
+  )
+
+  try {
+    const content = await readFile(filePath, 'utf8')
+    const saved = JSON.parse(content) as Partial<ProductMetadata>
+
+    return {
+      ...defaultProductMetadata,
+      ...saved,
+      colors: Array.isArray(saved.colors) ? saved.colors : ['black'],
+      sizes: Array.isArray(saved.sizes) ? saved.sizes : [],
+      collections: Array.isArray(saved.collections) ? saved.collections : []
+    }
+  } catch (error) {
+    if (
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return {
+        ...defaultProductMetadata,
+        sizes: [],
+        collections: []
+      }
+    }
+
+    throw error
+  }
+}
+
+
+export function validateProductMetadata( brand: BrandId, value: unknown ): value is ProductMetadata {
+  if (!value || typeof value !== 'object') return false
+
+  const data = value as Record<string, unknown>
+  const options = productOptions[brand]
+
+  const productType =
+  typeof data.productType === 'string'
+    ? getProductType(data.productType)
+    : undefined
+
+  return (
+    typeof data.title === 'string' &&
+    data.title.length <= 150 &&
+
+    typeof data.slug === 'string' &&
+    (data.slug === '' ||
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.slug)) &&
+    data.slug.length <= 180 &&
+
+    typeof data.description === 'string' &&
+    data.description.length <= 5000 &&
+
+    typeof data.price === 'number' &&
+      Number.isFinite(data.price) &&
+      data.price >= 0 &&
+      Math.abs(data.price * 100 - Math.round(data.price * 100)) < 0.000001 &&
+
+    Array.isArray(data.sizes) &&
+      data.sizes.every(
+        (size) =>
+          typeof size === 'string' &&
+          productType?.sizes.includes(size)
+      ) &&
+
+    typeof data.category === 'string' &&
+    (data.category === '' ||
+      options.categories.some(
+        (item) => item.id === data.category
+      )) &&
+
+    Array.isArray(data.collections) &&
+    data.collections.every(
+      (id) =>
+        typeof id === 'string' &&
+        options.collections.some((item) => item.id === id)
+    ) &&
+
+    Boolean(productType) &&
+
+    Array.isArray(data.colors) &&
+    data.colors.length > 0 &&
+    data.colors.every(
+      (color) =>
+        typeof color === 'string' &&
+        productType?.colors.some(
+          (available) => available.id === color
+        )
+    ) &&
+
+    (data.status === 'draft' || data.status === 'ready')
+  )
+}
+
+export async function saveProductMetadata(brand: BrandId, id: string, metadata: ProductMetadata) {
+  const filePath = path.join(
+    getArtworkDirectory(brand, id),
+    'metadata.json'
+  )
+
+  await writeFile(
+    filePath,
+    JSON.stringify(metadata, null, 2),
+    'utf8'
+  )
+}
+
+export async function isSlugTaken(
+  brand: BrandId,
+  slug: string,
+  excludeArtworkId?: string
+): Promise<boolean> {
+  if (!slug) return false
+
+  const existingProduct = await prisma.product.findFirst({
+    where: {
+      brand,
+      slug,
+      ...(excludeArtworkId
+        ? {
+            NOT: {
+              artworkId: excludeArtworkId
+            }
+          }
+        : {})
+    },
+    select: {
+      id: true
+    }
+  })
+
+  return existingProduct !== null
+}
+
+========== lib/productMetadataTypes.ts ==========
+
+export interface ProductMetadata {
+  title: string
+  slug: string
+  subtitle: string
+  description: string
+  price: number
+  sizes: string[]
+  category: string
+  collections: string[]
+  label: string
+  status: 'draft' | 'ready'
+  productType: string
+  colors: string[]
+}
+
+export const defaultProductMetadata: ProductMetadata = {
+  title: '',
+  slug: '',
+  subtitle: '',
+  description: '',
+  price: 0,
+  sizes: [],
+  category: '',
+  collections: [],
+  label: '',
+  status: 'draft',
+  productType: 'classic-tee',
+  colors: ['black']
+}
+
+export const availableSizes = [
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  '2XL',
+  '3XL'
+] as const
+
+========== lib/productOptions.ts ==========
+
+import type { BrandId } from '@/lib/brands'
+
+export interface ProductOption {
+  id: string
+  name: string
+}
+
+interface BrandProductOptions {
+  categories: ProductOption[]
+  collections: ProductOption[]
+  labels: ProductOption[]
+}
+
+export const productOptions: Record<BrandId, BrandProductOptions> = {
+  t4c: {
+    categories: [
+      { id: 'ai-tech', name: 'AI & Technology' },
+      { id: 'conspiracies', name: 'Conspiracies' },
+      { id: 'science-reality', name: 'Science & Reality' },
+      { id: 'health-society', name: 'Health & Society' }
+    ],
+    collections: [
+      { id: 'fat-shaming', name: 'Fat Shaming Department' },
+      { id: 'area-51', name: 'Area 51 Personnel Files' },
+      { id: 'moon-landing', name: 'Moon Landing Film Crew' },
+      { id: 'reality-exe', name: 'Reality.EXE' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
+    ]
+  },
+
+  legends: {
+    categories: [
+      { id: 'gods-goddesses', name: 'Gods & Goddesses' },
+      { id: 'mythical-creatures', name: 'Mythical Creatures' },
+      { id: 'heroes-villains', name: 'Heroes & Villains' },
+      { id: 'magic-mayhem', name: 'Magic & Mayhem' }
+    ],
+    collections: [
+      { id: 'greek-mythology', name: 'Greek Gods Behaving Badly' },
+      { id: 'norse-mythology', name: 'Vikings & Other Problems' },
+      { id: 'monsters-myths', name: 'Monsters & Misfits' },
+      { id: 'witchcraft', name: 'Witches, Curses & Bad Decisions' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
+    ]
+  },
+
+  'little-monsters': {
+    categories: [
+      { id: 'baby', name: 'Baby' },
+      { id: 'kids', name: 'Kids' },
+      { id: 'creatures', name: 'Little Creatures' },
+      { id: 'magic', name: 'Magic & Fantasy' },
+      { id: 'family-matching', name: 'Family & Matching' }
+    ],
+    collections: [
+      { id: 'baby-kraken', name: 'Baby Kraken Club' },
+      { id: 'tiny-dragons', name: 'Tiny Dragons' },
+      { id: 'monster-mischief', name: 'Monster Mischief' },
+      { id: 'bedtime-rebels', name: 'Bedtime Rebels' },
+      { id: 'mini-me', name: 'Mini Me Club' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
+    ]
+  },
+
+  'everyday-originals': {
+    categories: [
+      { id: 'travel-adventure', name: 'Travel & Adventure' },
+      { id: 'food-drinks', name: 'Food & Drinks' },
+      { id: 'music-culture', name: 'Music & Culture' },
+      { id: 'nature-outdoors', name: 'Nature & Outdoors' }
+    ],
+    collections: [
+      { id: 'roadtrip-club', name: 'The Roadtrip Club' },
+      { id: 'daily-essentials', name: 'Daily Essentials' },
+      { id: 'good-vibrations', name: 'Good Vibrations' },
+      { id: 'outside-the-lines', name: 'Outside the Lines' }
+    ],
+    labels: [
+      { id: 'new', name: 'New' },
+      { id: 'bestseller', name: 'Bestseller' },
+      { id: 'limited-edition', name: 'Limited Edition' }
+    ]
+  }
+}
+
+========== lib/slugify.ts ==========
+
+export function slugify(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+========== lib/supabase/client.ts ==========
+
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  )
+}
+
+========== lib/supabase/middleware.ts ==========
+
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function updateSession(request: NextRequest) {
+  let response = NextResponse.next({ request })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value)
+          })
+
+          response = NextResponse.next({ request })
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
+        }
+      }
+    }
+  )
+
+  // Validate and refresh the authentication session.
+  await supabase.auth.getUser()
+
+  return response
+}
+
+========== lib/supabase/server.ts ==========
+
+import 'server-only'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          } catch {
+            // Server Components cannot write cookies.
+            // Session refresh will be handled by Proxy/Middleware.
+          }
+        }
+      }
+    }
+  )
+}
+
+========== lib/supabaseAdmin.ts ==========
+
+import 'server-only'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
+
+if (!supabaseUrl || !supabaseSecretKey) {
+  throw new Error('Missing Supabase Storage environment variables')
+}
+
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  supabaseSecretKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
+
+========== middleware.ts ==========
+
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
+
+export async function middleware(request: NextRequest) {
+  return updateSession(request)
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
+  ]
+}
+
+========== next.config.ts ==========
+
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
+
+========== package.json ==========
+
+{
+  "name": "nvt-design-studio",
+  "version": "1.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "prisma generate && next build --turbopack",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.70.0",
+    "next": "15.5.29",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.29",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
+========== postcss.config.mjs ==========
+
+const config = {
+  plugins: ["@tailwindcss/postcss"],
+};
+
+export default config;
+
+========== prisma.config.ts ==========
+
+// This file was generated by Prisma and assumes you have installed the following:
+// npm install --save-dev prisma dotenv
+import "dotenv/config"
+import { defineConfig, env } from "prisma/config"
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: {
+    path: "prisma/migrations"
+  },
+  engine: "classic",
+  datasource: {
+    url: env("DATABASE_URL")
+  }
+})
+
+========== prisma/schema.prisma ==========
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  artworkId   String
+  artwork     Artwork  @relation(fields: [artworkId], references: [id])
+  brand       String
+  productType String
+  title       String
+  slug        String
+  status      String   @default("draft")
+  subtitle    String?
+  description String?
+  price       Float?
+  sizes       Json     @default("[]")
+  colors      Json     @default("[]")
+  category    String   @default("")
+  label       String   @default("")
+  collections Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sharedImages ProductSharedImage[]
+
+  @@unique([brand, slug])
+  @@index([artworkId])
+}
+
+model Artwork {
+  id        String    @id @default(uuid())
+  brand     String
+  filename  String    @default("artwork.png")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@index([brand])
+}
+
+model SharedImage {
+  id          String   @id @default(uuid())
+  name        String
+  storagePath String   @unique
+  productType String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products ProductSharedImage[]
+}
+
+model ProductSharedImage {
+  productId     String
+  sharedImageId String
+  position      Int @default(0)
+
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sharedImage SharedImage @relation(fields: [sharedImageId], references: [id])
+
+  @@id([productId, sharedImageId])
+}
+
+model PublishedProduct {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  brand       String
+  slug        String
+  data        Json
+  publishedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brand, slug])
+  @@index([brand])
+}
+
+model Category {
+  id          String @id
+  title       String
+  description String?
+}
+
+model Collection {
+  id           String  @id
+  slug         String  @unique
+  title        String
+  description  String?
+  listingImage String?
+}
+
+model Label {
+  id       String @id
+  title    String
+  keywords Json
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique
+  email     String?  @unique
+  firstName String?
+  lastName  String?
+  phone     String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  pending
+  paid
+  processing
+  shipped
+  delivered
+  cancelled
+  refunded
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  customerId            String?
+  customer              Customer?   @relation(fields: [customerId], references: [id])
+  status                OrderStatus @default(pending)
+  subtotal              Int
+  shippingCost          Int
+  discountAmount        Int         @default(0)
+  total                 Int
+  currency              String      @default("eur")
+  stripePaymentIntentId String?     @unique
+  shippingAddress       Json?
+  customerNote          String?
+  items                 OrderItem[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId String?
+  variantId String?
+  title     String
+  unitPrice Int
+  quantity  Int
+  meta      Json?
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  brand     String
+  name      String
+  email     String
+  message   String
+  status    String   @default("new")
+  emailSent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+========== scripts/test-cloud-artworks.ts ==========
+
+import 'dotenv/config'
+import { PrismaClient } from '../lib/generated/prisma/client'
+
+const prisma = new PrismaClient()
+
+async function main() {
+  const artworks = await prisma.artwork.findMany({
+    orderBy: {
+      createdAt: 'desc'
+    }
+  })
+
+  console.log(`Found ${artworks.length} artworks in PostgreSQL`)
+
+  for (const artwork of artworks) {
+    console.log({
+      id: artwork.id,
+      brand: artwork.brand,
+      filename: artwork.filename,
+      createdAt: artwork.createdAt.toISOString()
+    })
+  }
+}
+
+main()
+  .catch((error) => {
+    console.error('Database test failed:', error)
+    process.exitCode = 1
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
+
+========== scripts/test-database.ts ==========
+
+
+import 'dotenv/config'
+import { PrismaClient } from '@/lib/generated/prisma/client'
+
+const prisma = new PrismaClient()
+
+async function main() {
+  console.log('Testing database connection...')
+
+  // Test database connection
+  await prisma.$connect()
+  console.log('Database connected!')
+
+  // Create a temporary artwork
+  const artwork = await prisma.artwork.create({
+    data: {
+      brand: 't4c',
+      filename: 'artwork.png',
+    },
+  })
+
+  console.log('Artwork created:', artwork.id)
+
+  try {
+    // Retrieve the artwork
+    const saved = await prisma.artwork.findUnique({
+      where: { id: artwork.id },
+    })
+
+    if (!saved) {
+      throw new Error('Artwork could not be retrieved.')
+    }
+
+    console.log('Artwork retrieved:', saved.filename)
+  } finally {
+    // Always remove the temporary artwork
+    await prisma.artwork.delete({
+      where: { id: artwork.id },
+    })
+
+    console.log('Test artwork removed.')
+  }
+
+  console.log('Test completed! Database connection works.')
+}
+
+main()
+  .catch((error) => {
+    console.error('Database test failed:', error)
+    process.exitCode = 1
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })
+
+========== scripts/upload-artwork.ts ==========
+
+import 'dotenv/config'
+import path from 'node:path'
+import { readFile, readdir } from 'node:fs/promises'
+import { createClient } from '@supabase/supabase-js'
+
+const brand = 'legends'
+const artworkId = '780a50fa-7c6e-4345-bbe1-27885576df94'
+
+async function main() {
+  const url = process.env.SUPABASE_URL
+  const secretKey = process.env.SUPABASE_SECRET_KEY
+
+  if (!url || !secretKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  const supabase = createClient(url, secretKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+
+  const directory = path.join(
+    process.cwd(),
+    'designs',
+    brand,
+    artworkId
+  )
+
+  async function uploadFile(
+    localPath: string,
+    storagePath: string,
+    contentType: string
+  ) {
+    const file = await readFile(localPath)
+
+    const { error } = await supabase.storage
+      .from('artworks')
+      .upload(storagePath, file, {
+        contentType,
+        upsert: false,
+      })
+
+    if (error) {
+      // Already uploaded? Leave the existing file untouched.
+      if (error.statusCode === '409') {
+        console.log('Already exists, skipping:', storagePath)
+        return
+      }
+
+      throw error
+    }
+
+    console.log('Uploaded:', storagePath)
+  }
+
+  // Original artwork
+  await uploadFile(
+    path.join(directory, 'artwork.png'),
+    `${brand}/${artworkId}/artwork.png`,
+    'image/png'
+  )
+
+  // Mockups
+  const mockupDirectory = path.join(directory, 'mockups')
+
+  const files = await readdir(mockupDirectory)
+
+  for (const filename of files) {
+    if (!filename.endsWith('.webp')) continue
+
+    await uploadFile(
+      path.join(mockupDirectory, filename),
+      `${brand}/${artworkId}/mockups/${filename}`,
+      'image/webp'
+    )
+  }
+
+  console.log('Artwork and mockups upload completed!')
+}
+
+main().catch((error) => {
+  console.error('Upload failed:', error)
+  process.exitCode = 1
+})
+
+========== sql/01-reset-dummy-data.sql ==========
+
+-- DANGEROUS: Run ONLY in the intended NVT Studio development Supabase project.
+-- All Artwork, Product, PublishedProduct and their join rows are confirmed dummy data.
+-- Category, Collection, Label, SharedImage, Customer, Order and Auth are untouched.
+BEGIN;
+DELETE FROM "PublishedProduct";
+DELETE FROM "ProductSharedImage";
+DELETE FROM "Product";
+DELETE FROM "Artwork";
+COMMIT;
+-- Existing Storage objects are NOT removed by SQL. See README.
+
+========== sql/02-drop-legacy-columns.sql ==========
+
+-- Run ONLY AFTER new code is installed and Prisma client regenerated,
+-- AND after confirming the application builds against the new schema.
+BEGIN;
+ALTER TABLE "Artwork" DROP COLUMN IF EXISTS "metadata";
+ALTER TABLE "Product" DROP COLUMN IF EXISTS "metadata";
+COMMIT;
+
+========== tsconfig.json ==========
+
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

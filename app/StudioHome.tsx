@@ -26,9 +26,7 @@ export default function HomePage() {
     return () => URL.revokeObjectURL(url)
   }, [file])
 
-  function handleFileChange(
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.target.files?.[0]
 
     if (!selectedFile) return
