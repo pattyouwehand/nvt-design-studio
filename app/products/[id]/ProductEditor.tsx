@@ -8,6 +8,7 @@ import { productCatalog } from '@/lib/catalog/products'
 import { productOptions } from '@/lib/productOptions'
 import { isBrandId, type BrandId } from '@/lib/brands'
 import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
+import Image from 'next/image'
 
 type RecordData = {
   id: string
@@ -716,12 +717,15 @@ export default function ProductEditor({ id }: { id: string }) {
                 ))}
               </SelectField>
 
-              <div className="mt-4 flex aspect-[5/6] items-center justify-center overflow-hidden rounded-xl bg-neutral-100">
+              <div className="relative mt-4 flex aspect-5/6 items-center justify-center overflow-hidden rounded-xl bg-neutral-100">
                 {mockupExists ? (
-                  <img
+                  <Image
                     src={previewUrl}
                     alt="Product mockup"
-                    className="h-full w-full object-contain"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    className="object-contain"
+                    unoptimized
                   />
                 ) : (
                   <span className="text-sm text-neutral-500">

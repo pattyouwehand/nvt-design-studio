@@ -36,8 +36,8 @@ export async function GET() {
         filename: artwork.filename,
         createdAt: artwork.createdAt.toISOString(),
         updatedAt: artwork.updatedAt.toISOString(),
-        productCount: artwork._count.products,
-      })),
+        productCount: artwork._count.products
+      }))
     })
   } catch (error) {
     console.error('Unable to load artworks:', error)
@@ -117,8 +117,8 @@ export async function POST(request: NextRequest) {
         data: {
           id,
           brand,
-          filename: file.name,
-        },
+          filename: file.name
+        }
       })
 
       return NextResponse.json(
