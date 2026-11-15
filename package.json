@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build && node -e \"const fs = require('fs'); const p = '.next/server/app/api/artworks/route.js.nft.json'; const t = JSON.parse(fs.readFileSync(p, 'utf8')); console.log('ENGINE TRACE:', t.files.filter(f => f.includes('query_engine')))\"",
     "start": "next start",
     "lint": "eslint"
   },
