@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && node -e \"const fs = require('fs'); console.log('Prisma engines:', fs.readdirSync('lib/generated/prisma').filter(f => f.includes('query_engine')))\" && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint"
   },
