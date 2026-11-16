@@ -1,3 +1,4 @@
+
 import type { BrandId } from '@/lib/brands'
 
 export interface ProductOption {
@@ -10,6 +11,12 @@ interface BrandProductOptions {
   collections: ProductOption[]
   labels: ProductOption[]
 }
+
+export const productBadges: ProductOption[] = [
+  { id: 'new', name: 'New' },
+  { id: 'bestseller', name: 'Bestseller' },
+  { id: 'limited-edition', name: 'Limited Edition' }
+]
 
 export const productOptions: Record<BrandId, BrandProductOptions> = {
   t4c: {
@@ -26,9 +33,15 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'reality-exe', name: 'Reality.EXE' }
     ],
     labels: [
-      { id: 'new', name: 'New' },
-      { id: 'bestseller', name: 'Bestseller' },
-      { id: 'limited-edition', name: 'Limited Edition' }
+      { id: 'artificial-intelligence', name: 'Artificial Intelligence' },
+      { id: 'robots', name: 'Robots' },
+      { id: 'internet-culture', name: 'Internet Culture' },
+      { id: 'conspiracy', name: 'Conspiracy' },
+      { id: 'aliens', name: 'Aliens' },
+      { id: 'space', name: 'Space' },
+      { id: 'quantum-physics', name: 'Quantum Physics' },
+      { id: 'satire', name: 'Satire' },
+      { id: 'health', name: 'Health' }
     ]
   },
 
@@ -46,9 +59,15 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'witchcraft', name: 'Witches, Curses & Bad Decisions' }
     ],
     labels: [
-      { id: 'new', name: 'New' },
-      { id: 'bestseller', name: 'Bestseller' },
-      { id: 'limited-edition', name: 'Limited Edition' }
+      { id: 'greek', name: 'Greek Mythology' },
+      { id: 'norse', name: 'Norse Mythology' },
+      { id: 'celtic', name: 'Celtic Mythology' },
+      { id: 'gods', name: 'Gods' },
+      { id: 'monsters', name: 'Monsters' },
+      { id: 'witchcraft', name: 'Witchcraft' },
+      { id: 'dark-humor', name: 'Dark Humor' },
+      { id: 'legends', name: 'Legends' },
+      { id: 'fantasy', name: 'Fantasy' }
     ]
   },
 
@@ -68,9 +87,15 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'mini-me', name: 'Mini Me Club' }
     ],
     labels: [
-      { id: 'new', name: 'New' },
-      { id: 'bestseller', name: 'Bestseller' },
-      { id: 'limited-edition', name: 'Limited Edition' }
+      { id: 'kraken', name: 'Kraken' },
+      { id: 'dragons', name: 'Dragons' },
+      { id: 'monsters', name: 'Monsters' },
+      { id: 'magic', name: 'Magic' },
+      { id: 'bedtime', name: 'Bedtime' },
+      { id: 'mischief', name: 'Mischief' },
+      { id: 'cute', name: 'Cute' },
+      { id: 'adventure', name: 'Adventure' },
+      { id: 'humor', name: 'Humor' }
     ]
   },
 
@@ -88,9 +113,15 @@ export const productOptions: Record<BrandId, BrandProductOptions> = {
       { id: 'outside-the-lines', name: 'Outside the Lines' }
     ],
     labels: [
-      { id: 'new', name: 'New' },
-      { id: 'bestseller', name: 'Bestseller' },
-      { id: 'limited-edition', name: 'Limited Edition' }
+      { id: 'roadtrip', name: 'Roadtrip' },
+      { id: 'retro', name: 'Retro' },
+      { id: 'coffee', name: 'Coffee' },
+      { id: 'food', name: 'Food' },
+      { id: 'music', name: 'Music' },
+      { id: 'beach', name: 'Beach' },
+      { id: 'nature', name: 'Nature' },
+      { id: 'humor', name: 'Humor' },
+      { id: 'lifestyle', name: 'Lifestyle' }
     ]
   }
 }

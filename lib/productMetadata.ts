@@ -1,19 +1,22 @@
 import 'server-only'
+
 import type { BrandId } from '@/lib/brands'
-import { productOptions } from '@/lib/productOptions'
+import { productOptions, productBadges } from '@/lib/productOptions'
 import { getProductType } from '@/lib/catalog/products'
 import type { ProductMetadata } from '@/lib/productMetadataTypes'
 
 export function validateProductMetadata( brand: BrandId, value: unknown ): value is ProductMetadata {
-  if (!value || typeof value !== 'object') return false
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
 
   const data = value as Record<string, unknown>
   const options = productOptions[brand]
 
   const productType =
-  typeof data.productType === 'string'
-    ? getProductType(data.productType)
-    : undefined
+    typeof data.productType === 'string'
+      ? getProductType(data.productType)
+      : undefined
 
   return (
     typeof data.title === 'string' &&
@@ -24,20 +27,24 @@ export function validateProductMetadata( brand: BrandId, value: unknown ): value
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.slug)) &&
     data.slug.length <= 180 &&
 
+    typeof data.subtitle === 'string' &&
+
     typeof data.description === 'string' &&
     data.description.length <= 5000 &&
 
     typeof data.price === 'number' &&
-      Number.isFinite(data.price) &&
-      data.price >= 0 &&
-      Math.abs(data.price * 100 - Math.round(data.price * 100)) < 0.000001 &&
+    Number.isFinite(data.price) &&
+    data.price >= 0 &&
+    Math.abs(data.price * 100 - Math.round(data.price * 100)) < 0.000001 &&
+
+    Boolean(productType) &&
 
     Array.isArray(data.sizes) &&
-      data.sizes.every(
-        (size) =>
-          typeof size === 'string' &&
-          productType?.sizes.includes(size)
-      ) &&
+    data.sizes.every(
+      (size) =>
+        typeof size === 'string' &&
+        productType?.sizes.includes(size)
+    ) &&
 
     typeof data.category === 'string' &&
     (data.category === '' ||
@@ -52,7 +59,21 @@ export function validateProductMetadata( brand: BrandId, value: unknown ): value
         options.collections.some((item) => item.id === id)
     ) &&
 
-    Boolean(productType) &&
+    Array.isArray(data.labels) &&
+    data.labels.every(
+      (id) =>
+        typeof id === 'string' &&
+        options.labels.some((item) => item.id === id)
+    ) &&
+
+    Array.isArray(data.badges) &&
+    data.badges.every(
+      (id) =>
+        typeof id === 'string' &&
+        productBadges.some((item) => item.id === id)
+    ) &&
+
+    typeof data.featured === 'boolean' &&
 
     Array.isArray(data.colors) &&
     data.colors.length > 0 &&

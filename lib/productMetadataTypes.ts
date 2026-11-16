@@ -1,3 +1,4 @@
+
 export interface ProductMetadata {
   title: string
   slug: string
@@ -7,7 +8,9 @@ export interface ProductMetadata {
   sizes: string[]
   category: string
   collections: string[]
-  label: string
+  labels: string[]
+  badges: string[]
+  featured: boolean
   status: 'draft' | 'ready'
   productType: string
   colors: string[]
@@ -22,7 +25,9 @@ export const defaultProductMetadata: ProductMetadata = {
   sizes: [],
   category: '',
   collections: [],
-  label: '',
+  labels: [],
+  badges: [],
+  featured: false,
   status: 'draft',
   productType: 'classic-tee',
   colors: ['black']

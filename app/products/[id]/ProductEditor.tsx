@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { productCatalog } from '@/lib/catalog/products'
-import { productOptions } from '@/lib/productOptions'
+import { productBadges, productOptions } from '@/lib/productOptions'
 import { isBrandId, type BrandId } from '@/lib/brands'
 import { defaultProductMetadata, type ProductMetadata } from '@/lib/productMetadataTypes'
 import Image from 'next/image'
@@ -28,12 +28,7 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-function SelectField({
-  value,
-  onChange,
-  children,
-  disabled
-}: {
+function SelectField({ value, onChange, children, disabled}: {
   value: string
   onChange: (value: string) => void
   children: React.ReactNode
@@ -104,7 +99,9 @@ export default function ProductEditor({ id }: { id: string }) {
           colors: Array.isArray(p.colors) ? p.colors : [],
           category: p.category,
           collections: Array.isArray(p.collections) ? p.collections : [],
-          label: p.label,
+          labels: Array.isArray(p.labels) ? p.labels : [],
+          badges: Array.isArray(p.badges) ? p.badges : [],
+          featured: p.featured ?? false,
           status: p.status === 'ready' ? 'ready' : 'draft',
           productType: p.productType,
         })
@@ -653,22 +650,74 @@ export default function ProductEditor({ id }: { id: string }) {
               </div>
             </div>
 
-            <label className="block space-y-1 text-sm">
-              Label
-              <SelectField
-                value={details.label}
-                onChange={(value) =>
-                  update('label', value)
-                }
-              >
-                <option value="">None</option>
+            {/* Labels */}
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">
+                Labels
+              </legend>
 
-                {options.labels.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
+              <div className="flex flex-wrap gap-3">
+                {options.labels.map((label) => (
+                  <label
+                    key={label.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={details.labels.includes(label.id)}
+                      onChange={(event) => {
+                        const labels = event.target.checked
+                          ? [...details.labels, label.id]
+                          : details.labels.filter((id) => id !== label.id)
+
+                        update('labels', labels)
+                      }}
+                    />
+                    {label.name}
+                  </label>
                 ))}
-              </SelectField>
+              </div>
+            </fieldset>
+
+            {/* Badges */}
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">
+                Badges
+              </legend>
+
+              <div className="flex flex-wrap gap-3">
+                {productBadges.map((badge) => (
+                  <label
+                    key={badge.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={details.badges.includes(badge.id)}
+                      onChange={(event) => {
+                        const badges = event.target.checked
+                          ? [...details.badges, badge.id]
+                          : details.badges.filter((id) => id !== badge.id)
+
+                        update('badges', badges)
+                      }}
+                    />
+                    {badge.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            {/* Featured */}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={details.featured}
+                onChange={(event) =>
+                  update('featured', event.target.checked)
+                }
+              />
+              Featured product
             </label>
 
             <div className="flex flex-wrap gap-3 border-t pt-5">

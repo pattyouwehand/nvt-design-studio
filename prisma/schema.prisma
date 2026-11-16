@@ -31,8 +31,10 @@ model Product {
   sizes       Json     @default("[]")
   colors      Json     @default("[]")
   category    String   @default("")
-  label       String   @default("")
   collections Json     @default("[]")
+  labels      Json     @default("[]")
+  badges      Json     @default("[]")
+  featured    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

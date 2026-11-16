@@ -7,18 +7,26 @@ import { validateProductMetadata } from '@/lib/productMetadata'
 import { Prisma } from '@/lib/generated/prisma/client'
 
 export const runtime = 'nodejs'
-type Context = { params: Promise<{ id: string }> }
+
+type Context = {
+  params: Promise<{ id: string }>
+}
 
 export async function GET(_request: NextRequest, { params }: Context) {
   if (!(await getStudioUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { id } = await params
+
   if (!isArtworkId(id)) return NextResponse.json({ error: 'Invalid product ID' }, { status: 400 })
+
   const [product, published] = await Promise.all([
     prisma.product.findUnique({ where: { id }, include: { artwork: { select: { brand: true } } } }),
     prisma.publishedProduct.findUnique({ where: { productId: id }, select: { id: true } })
   ])
+
   if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-  return NextResponse.json({ product: { ...product, isPublished: Boolean(published) } })
+
+    return NextResponse.json({ product: { ...product, isPublished: Boolean(published) } })
 }
 
 export async function PATCH(request: NextRequest, { params }: Context) {
@@ -35,10 +43,20 @@ export async function PATCH(request: NextRequest, { params }: Context) {
     const product = await prisma.product.update({
       where: { id },
       data: {
-        title: input.title, slug: input.slug, subtitle: input.subtitle,
-        description: input.description, price: input.price, sizes: input.sizes,
-        colors: input.colors, category: input.category, collections: input.collections,
-        label: input.label, status: input.status, productType: input.productType
+        title: input.title,
+        slug: input.slug,
+        subtitle: input.subtitle,
+        description: input.description,
+        price: input.price,
+        sizes: input.sizes,
+        colors: input.colors,
+        category: input.category,
+        collections: input.collections,
+        labels: input.labels,
+        badges: input.badges,
+        featured: input.featured,
+        status: input.status,
+        productType: input.productType
       }
     })
     return NextResponse.json({ product })

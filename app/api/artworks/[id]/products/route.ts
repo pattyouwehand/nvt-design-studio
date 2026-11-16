@@ -23,10 +23,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const productId = randomUUID()
     const product = await prisma.product.create({
       data: {
-        id: productId, artworkId: id, brand, productType: productType.id,
-        title: '', slug: `draft-${productId}`, status: 'draft',
-        subtitle: '', description: '', price: null,
-        sizes: [], colors: [], category: '', label: '', collections: []
+        id: productId,
+        artworkId: id,
+        brand,
+        productType: productType.id,
+        title: '',
+        slug: `draft-${productId}`,
+        status: 'draft',
+        subtitle: '',
+        description: '',
+        price: null,
+        sizes: [],
+        colors: [],
+        category: '',
+        collections: [],
+        labels: [],
+        badges: [],
+        featured: false
       },
       select: { id: true }
     })

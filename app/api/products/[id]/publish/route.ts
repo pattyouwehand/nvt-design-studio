@@ -161,6 +161,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       colors,
       category: product.category,
       collections: Array.isArray(collections) ? collections : [],
+      labels: Array.isArray(product.labels) ? product.labels : [],
+      badges: Array.isArray(product.badges) ? product.badges : [],
+      featured: product.featured,
       images
     }
 
