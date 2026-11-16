@@ -1,5 +1,5 @@
 export const brands = [
-  { id: 't4c', name: "T's for Conspiracy" },
+  { id: 't4c', name: "T's for Conspiracies" },
   { id: 'legends', name: 'Goddamn Legends' },
   { id: 'little-monsters', name: 'Little Monsters' },
   { id: 'everyday-originals', name: 'Everyday Originals' }

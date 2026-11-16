@@ -1,27 +1,28 @@
 {
   "name": "nvt-design-studio",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build && node -e \"const fs = require('fs'); const p = '.next/server/app/api/artworks/route.js.nft.json'; const t = JSON.parse(fs.readFileSync(p, 'utf8')); console.log('ENGINE TRACE:', t.files.filter(f => f.includes('query_engine')))\"",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6.19.3",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "jszip": "^3.10.2",
     "lucide-react": "^1.70.0",
     "next": "15.5.29",
+    "pg": "^8.23.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@prisma/nextjs-monorepo-workaround-plugin": "^7.10.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
